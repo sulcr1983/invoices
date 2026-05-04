@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import pytest
 import json
-import os
 import sys
 import tempfile
 import shutil
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from api_server import app, db_manager, add_log, clear_logs, process_logs
 from system.db_manager import DBManager
@@ -641,13 +641,9 @@ class TestCoreModules:
         """正常流程：PDF发票识别"""
         archive_dir = ARCHIVE_DIR
         pdf_files = []
-        for root, dirs, files in os.walk(archive_dir):
-            for f in files:
-                if f.endswith('.pdf'):
-                    pdf_files.append(os.path.join(root, f))
-                    if len(pdf_files) >= 1:
-                        break
-            if pdf_files:
+        for fp in Path(archive_dir).rglob('*.pdf'):
+            pdf_files.append(str(fp))
+            if len(pdf_files) >= 1:
                 break
 
         if not pdf_files:
@@ -664,13 +660,9 @@ class TestCoreModules:
         """正常流程：计算文件MD5"""
         archive_dir = ARCHIVE_DIR
         pdf_files = []
-        for root, dirs, files in os.walk(archive_dir):
-            for f in files:
-                if f.endswith('.pdf'):
-                    pdf_files.append(os.path.join(root, f))
-                    break
-            if pdf_files:
-                break
+        for fp in Path(archive_dir).rglob('*.pdf'):
+            pdf_files.append(str(fp))
+            break
 
         if not pdf_files:
             pytest.skip('No archived PDF files found')
@@ -688,7 +680,7 @@ class TestCoreModules:
         """正常流程：确保目录存在"""
         result = ensure_directories()
         assert result is True or result is None
-        assert os.path.exists(INPUT_INVOICES_DIR)
+        assert Path(INPUT_INVOICES_DIR).exists()
 
     def test_scan_pending_files(self):
         """正常流程：扫描待处理文件"""

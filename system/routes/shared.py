@@ -1,7 +1,9 @@
-import os
 import sys
+import logging
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 _THIS_DIR = str(Path(__file__).resolve().parent)
 if _THIS_DIR not in sys.path:
@@ -42,4 +44,5 @@ def clear_logs():
 
 def api_error(message, status_code=500):
     cn_msg = err_to_cn(message)
+    logger.exception(f"API错误: {cn_msg}")
     return {'status': 'error', 'message': cn_msg}, status_code

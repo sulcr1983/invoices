@@ -1,7 +1,7 @@
-import os
 import sys
 import logging
 import uuid
+from pathlib import Path
 from datetime import datetime
 
 try:
@@ -46,31 +46,30 @@ def generate_batch_id():
 
 def relocate_failed_to_input():
     import shutil
-    if not os.path.exists(str(FAILED_DIR)):
+    failed_dir = Path(FAILED_DIR)
+    if not failed_dir.exists():
         return 0
 
-    files = [f for f in os.listdir(str(FAILED_DIR)) if os.path.isfile(os.path.join(str(FAILED_DIR), f))]
+    files = [f for f in failed_dir.iterdir() if f.is_file()]
     if not files:
         return 0
 
     count = 0
-    for filename in files:
-        src_path = os.path.join(str(FAILED_DIR), filename)
-        dst_path = os.path.join(str(INPUT_DIR), filename)
+    for src_path in files:
+        dst_path = Path(INPUT_DIR) / src_path.name
 
-        if os.path.exists(dst_path):
-            name, ext = os.path.splitext(filename)
+        if dst_path.exists():
             counter = 1
-            while os.path.exists(dst_path):
-                dst_path = os.path.join(str(INPUT_DIR), f"{name}_{counter}{ext}")
+            while dst_path.exists():
+                dst_path = Path(INPUT_DIR) / f"{src_path.stem}_{counter}{src_path.suffix}"
                 counter += 1
 
         try:
-            shutil.move(src_path, dst_path)
-            logger.info(f"文件从失败目录移回待识别: {filename}")
+            shutil.move(str(src_path), str(dst_path))
+            logger.info(f"文件从失败目录移回待识别: {src_path.name}")
             count += 1
         except Exception as e:
-            logger.warning(f"移动文件失败: {filename}, 错误: {e}")
+            logger.warning(f"移动文件失败: {src_path.name}, 错误: {e}")
 
     if count > 0:
         logger.info(f"已将 {count} 个文件从失败目录移回待识别目录")
@@ -176,7 +175,7 @@ def run_pipeline():
     files_to_skip = []
     stats = {'success': 0, 'duplicate': 0, 'failed': 0}
     for filename in pending_files:
-        file_path = os.path.join(str(INPUT_DIR), filename)
+        file_path = str(Path(INPUT_DIR) / filename)
         file_md5 = calculate_file_md5(file_path)
         if file_md5:
             existing = db_manager.get_record_by_md5(file_md5)
@@ -215,8 +214,8 @@ def run_pipeline():
         return {'success': 0, 'duplicate': len(files_to_skip), 'failed': 0}, batch_id
 
     for filename in pending_files:
-        file_path = os.path.join(str(INPUT_DIR), filename)
-        absolute_file_path = os.path.abspath(file_path)
+        file_path = str(Path(INPUT_DIR) / filename)
+        absolute_file_path = str(Path(file_path).resolve())
 
         lock_key = f"process:{absolute_file_path}"
         if not db_manager.acquire_file_lock(lock_key, PROCESS_INSTANCE_ID, timeout=10):
@@ -246,7 +245,7 @@ def run_pipeline():
                 else:
                     logger.warning(f"推送企微失败(稍后补偿): {record.get('invoice_num')}, {push_error}")
 
-                ext = os.path.splitext(processing_path)[1]
+                ext = Path(processing_path).suffix
                 archive_path = get_archive_path(
                     record.get('seller', ''),
                     record.get('invoice_num', ''),

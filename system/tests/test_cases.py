@@ -4,14 +4,21 @@
 测试范围：空文件/乱码/损坏文件/中文路径/权限异常/重复数据
 """
 
-import os
 import sys
 import shutil
 import tempfile
 import traceback
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+_THIS_DIR = str(Path(__file__).resolve().parent)
+_SYSTEM_DIR = str(Path(__file__).resolve().parent.parent)
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
+if _THIS_DIR not in sys.path:
+    sys.path.insert(0, _THIS_DIR)
+if _SYSTEM_DIR not in sys.path:
+    sys.path.insert(0, _SYSTEM_DIR)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from system.config import (
     INPUT_DIR, PROCESSING_DIR, ARCHIVE_DIR, FAILED_DIR, DUPLICATE_DIR,
@@ -68,28 +75,28 @@ def skip(name, detail):
 def setup_module():
     ensure_directories()
     for d in [INPUT_DIR, PROCESSING_DIR, FAILED_DIR, DUPLICATE_DIR, DATA_DIR]:
-        os.makedirs(str(d), exist_ok=True)
+        Path(d).mkdir(parents=True, exist_ok=True)
     clear_logs()
 
 
 def cleanup_test_files():
     for d in [INPUT_DIR, PROCESSING_DIR, FAILED_DIR, DUPLICATE_DIR]:
-        if os.path.exists(str(d)):
-            for f in os.listdir(str(d)):
-                fp = os.path.join(str(d), f)
+        dp = Path(d)
+        if dp.exists():
+            for fp in dp.iterdir():
                 try:
-                    if os.path.isfile(fp):
-                        os.remove(fp)
+                    if fp.is_file():
+                        fp.unlink()
                 except Exception:
                     pass
 
 
 def create_test_file(filepath, content=b"", filename=None):
     if filename:
-        filepath = os.path.join(str(INPUT_DIR), filename)
-    parent = os.path.dirname(filepath)
-    if parent and not os.path.exists(parent):
-        os.makedirs(parent, exist_ok=True)
+        filepath = str(Path(INPUT_DIR) / filename)
+    parent = Path(filepath).parent
+    if not parent.exists():
+        parent.mkdir(parents=True, exist_ok=True)
     with open(filepath, "wb") as f:
         f.write(content)
     return filepath
@@ -135,28 +142,28 @@ test("超长文件名(90字+)处理正常", r is not None,
 
 # A5. 空文件名（文件名为空字符串）
 try:
-    f_no_name = os.path.join(str(INPUT_DIR), "")
+    f_no_name = str(Path(INPUT_DIR) / "")
     test("空文件名检测", True, "路径指向INPUT_DIR")
 except Exception:
     test("空文件名不崩溃", True, "不会触发异常")
 
 # A6. 文件名为纯空格
 f_space = create_test_file(b"test", filename="   .pdf")
-test("空格文件名可被扫描", os.path.exists(f_space), f"文件存在: {f_space}")
+test("空格文件名可被扫描", Path(f_space).exists(), f"文件存在: {f_space}")
 
 # A7. 不存在的文件
-r = extract_invoice(os.path.join(str(INPUT_DIR), "_not_exist_file_999.pdf"))
+r = extract_invoice(str(Path(INPUT_DIR) / "_not_exist_file_999.pdf"))
 test("不存在文件优雅返回", r is None or (isinstance(r, tuple) and r[0] is None),
      "不抛异常，返回 None")
 
 # A8. 文件没有读取权限（仅Windows管理员能创建）
 try:
-    no_perm = os.path.join(str(INPUT_DIR), "_no_perm.pdf")
+    no_perm = str(Path(INPUT_DIR) / "_no_perm.pdf")
     with open(no_perm, "wb") as f:
         f.write(b"test")
+    import os
     os.chmod(no_perm, 0o000)
     r = calculate_file_md5(no_perm)
-    # Windows下chmod可能不生效，只要不抛异常就算通过
     test("无权限文件不崩溃", True,
          f"已处理 (r={'None' if r is None else 'has value'})")
     os.chmod(no_perm, 0o666)
@@ -166,7 +173,7 @@ except Exception as e:
 
 # A9. 文件为 .gitkeep 等占位文件
 f_gitkeep = create_test_file(b"", filename=".keep")
-test("隐藏文件作为输入不崩溃", os.path.exists(f_gitkeep), "文件已创建")
+test("隐藏文件作为输入不崩溃", Path(f_gitkeep).exists(), "文件已创建")
 
 # A10. 文件后缀全大写
 f_upper = create_test_file(b"dummy", filename="INVOICE.PDF")
@@ -184,8 +191,8 @@ print("-" * 68)
 # B1. 确保目录自动创建
 test_dirs = [INPUT_DIR, PROCESSING_DIR, ARCHIVE_DIR, FAILED_DIR, DUPLICATE_DIR]
 for d in test_dirs:
-    exists = os.path.exists(str(d))
-    test(f"目录存在: {os.path.basename(str(d))}", exists,
+    exists = Path(d).exists()
+    test(f"目录存在: {Path(d).name}", exists,
          f"路径: {d}")
 
 # B2. 目录路径含中文
@@ -196,11 +203,12 @@ test("用户目录含中文路径", has_chinese,
 
 # B3. 暂时清理 A 节测试文件，再扫描空文件夹
 for d in [INPUT_DIR, PROCESSING_DIR, FAILED_DIR, DUPLICATE_DIR]:
-    if os.path.exists(str(d)):
-        for f in os.listdir(str(d)):
-            fp = os.path.join(str(d), f)
+    dp = Path(d)
+    if dp.exists():
+        for fp in dp.iterdir():
             try:
-                if os.path.isfile(fp): os.remove(fp)
+                if fp.is_file():
+                    fp.unlink()
             except Exception:
                 pass
 files = scan_pending_files()
@@ -211,7 +219,7 @@ test("空文件夹扫描返回空列表", isinstance(files, list) and len(files)
 from datetime import datetime
 now = datetime.now()
 ap = get_archive_path("测试单位", "TEST001", 100.00, ".pdf", invoice_date=now.strftime("%Y-%m-%d"))
-expected_year_month = os.path.join(str(ARCHIVE_DIR), now.strftime("%Y"), now.strftime("%m"))
+expected_year_month = str(Path(ARCHIVE_DIR) / now.strftime("%Y") / now.strftime("%m"))
 test("归档路径包含年月目录", expected_year_month in ap,
      f"路径: {ap}")
 
@@ -224,14 +232,15 @@ print("-" * 68)
 
 # C1. 先清理所有测试文件再测业务逻辑
 cleanup_test_files()
-# 确保所有业务目录空
 for d in [INPUT_DIR, PROCESSING_DIR, FAILED_DIR, DUPLICATE_DIR]:
-    if os.path.exists(str(d)):
-        for f in os.listdir(str(d)):
-            fp = os.path.join(str(d), f)
+    dp = Path(d)
+    if dp.exists():
+        for fp in dp.iterdir():
             try:
-                if os.path.isfile(fp): os.remove(fp)
-                elif os.path.isdir(fp): shutil.rmtree(fp)
+                if fp.is_file():
+                    fp.unlink()
+                elif fp.is_dir():
+                    shutil.rmtree(fp)
             except Exception:
                 pass
 
@@ -391,10 +400,11 @@ test("导出数据一致性", e1_total == e2_total,
      f"两次导出均为 {e1_total} 条")
 
 # D3. 数据库文件存在且可读
-db_exists = os.path.exists(str(DB_PATH))
+db_path = Path(DB_PATH)
+db_exists = db_path.exists()
 test("数据库文件存在", db_exists, f"path={DB_PATH}")
 if db_exists:
-    db_size = os.path.getsize(str(DB_PATH))
+    db_size = db_path.stat().st_size
     test("数据库文件非空", db_size > 0, f"size={db_size} bytes")
 
 # ================================================================
@@ -405,18 +415,18 @@ print("  E. 配置与环境完整性")
 print("-" * 68)
 
 # E1. requirements.txt 存在
-req_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "requirements.txt")
-test("system/requirements.txt 存在", os.path.exists(req_path),
+req_path = Path(__file__).resolve().parent.parent / "requirements.txt"
+test("system/requirements.txt 存在", req_path.exists(),
      f"path={req_path}")
 
 # E2. .env.example 存在
-env_example = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env.example")
-test(".env.example 存在", os.path.exists(env_example),
+env_example = Path(__file__).resolve().parent.parent.parent / ".env.example"
+test(".env.example 存在", env_example.exists(),
      f"path={env_example}")
 
 # E3. 一键启动 bat 存在
-bat_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "🚀 一键启动.bat")
-test("一键启动.bat 存在", os.path.exists(bat_path),
+bat_path = Path(__file__).resolve().parent.parent.parent / "🚀 一键启动.bat"
+test("一键启动.bat 存在", bat_path.exists(),
      f"path={bat_path}")
 
 # E4. import 完整性 - 所有模块可导入

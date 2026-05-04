@@ -1,4 +1,4 @@
-﻿const API_BASE = '/api';
+const API_BASE = '/api';
         let currentPage = 'dashboard';
         let invoiceListPage = 1;
         const PAGE_LIMIT = 10;
@@ -137,8 +137,12 @@
         }
 
         async function loadDashboard() {
+            var statEls = ['stat-pending', 'stat-archived', 'stat-month-cnt', 'hero-pending-count'];
+            statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.innerHTML = '<span class="skeleton" style="display:inline-block;width:32px;height:18px;"></span>'; });
+            var tbody = document.getElementById('recent-invoices-body');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             const data = await apiRequest('/dashboard');
-            if (!data) return;
+            if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-text-muted">加载失败</td></tr>'; return; }
             document.getElementById('stat-pending').textContent = data.directory_status.pending || 0;
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
@@ -225,6 +229,8 @@
 
         async function loadInvoices(page) {
             invoiceListPage = page;
+            var tbody = document.getElementById('invoices-body');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             var keyword = document.getElementById('search-keyword').value;
             var dateFrom = document.getElementById('search-date-from').value;
             var dateTo = document.getElementById('search-date-to').value;

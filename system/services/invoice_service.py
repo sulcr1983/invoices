@@ -1,5 +1,5 @@
-import os
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def extract_invoice_data(file_path):
 def process_invoice_file(processing_path, db_manager, batch_id=None):
     from .file_service import move_to_failed, move_to_duplicate
 
-    original_filename = os.path.basename(processing_path)
+    original_filename = Path(processing_path).name
 
     try:
         record, details, error = extract_invoice_data(processing_path)

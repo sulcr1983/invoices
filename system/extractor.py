@@ -1,5 +1,6 @@
-import os
 import logging
+from pathlib import Path
+
 try:
     from .core.baidu_ocr import is_baidu_ocr_available, extract_from_baidu_vat_invoice
     from .core.pdf_utils import extract_from_pdf_plumber
@@ -17,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 def extract_invoice(file_path):
-    if not os.path.exists(file_path):
+    fp = Path(file_path)
+    if not fp.exists():
         logger.error(f"文件不存在: {file_path}")
         return None
 
@@ -26,7 +28,7 @@ def extract_invoice(file_path):
         logger.error(f"无法计算文件MD5: {file_path}")
         return None
 
-    ext = os.path.splitext(file_path)[1].lower()
+    ext = fp.suffix.lower()
     record = None
     extraction_method = None
 

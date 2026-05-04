@@ -3,12 +3,15 @@ import logging
 import time
 import requests
 
-import os
 import sys
-if not os.path.dirname(os.path.abspath(__file__)) in sys.path:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-if not os.path.dirname(os.path.dirname(os.path.abspath(__file__))) in sys.path:
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pathlib import Path
+
+_THIS_DIR = str(Path(__file__).resolve().parent)
+if _THIS_DIR not in sys.path:
+    sys.path.insert(0, _THIS_DIR)
+_PARENT_DIR = str(Path(__file__).resolve().parent.parent)
+if _PARENT_DIR not in sys.path:
+    sys.path.insert(0, _PARENT_DIR)
 
 try:
     from ..config import err_to_cn
