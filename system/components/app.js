@@ -43,6 +43,16 @@ const API_BASE = '/api';
             }
         }
 
+        function showModal(title, bodyHtml) {
+            document.getElementById('generic-modal-title').textContent = title;
+            document.getElementById('generic-modal-body').innerHTML = bodyHtml;
+            document.getElementById('generic-modal').classList.add('show');
+        }
+
+        function closeGenericModal() {
+            document.getElementById('generic-modal').classList.remove('show');
+        }
+
         function showSuccessModal(title, message, stats) {
             document.getElementById('success-title').textContent = title;
             document.getElementById('success-message').textContent = message;
@@ -139,10 +149,10 @@ const API_BASE = '/api';
         async function loadDashboard() {
             var statEls = ['stat-pending', 'stat-archived', 'stat-month-cnt', 'hero-pending-count'];
             statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.innerHTML = '<span class="skeleton" style="display:inline-block;width:32px;height:18px;"></span>'; });
-            var tbody = document.getElementById('recent-invoices-body');
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
+            var dashTbody = document.getElementById('recent-invoices-body');
+            dashTbody.innerHTML = '<tr><td colspan="6" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             const data = await apiRequest('/dashboard');
-            if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-text-muted">加载失败</td></tr>'; return; }
+            if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); dashTbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-text-muted">加载失败</td></tr>'; return; }
             document.getElementById('stat-pending').textContent = data.directory_status.pending || 0;
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
@@ -229,8 +239,8 @@ const API_BASE = '/api';
 
         async function loadInvoices(page) {
             invoiceListPage = page;
-            var tbody = document.getElementById('invoices-body');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
+            var invTbody = document.getElementById('invoices-body');
+            invTbody.innerHTML = '<tr><td colspan="7" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             var keyword = document.getElementById('search-keyword').value;
             var dateFrom = document.getElementById('search-date-from').value;
             var dateTo = document.getElementById('search-date-to').value;
@@ -636,9 +646,9 @@ const API_BASE = '/api';
             var url = '/stats/summary' + (params.length ? '?' + params.join('&') : '');
             var result = await apiRequest(url);
             if (!result) return;
-            document.getElementById('stat-total-amt').textContent = '¥' + formatMoney(result.total_amt);
-            document.getElementById('stat-total-price').textContent = '¥' + formatMoney(result.total_price);
-            document.getElementById('stat-total-tax').textContent = '¥' + formatMoney(result.total_tax);
+            document.getElementById('stat-total-amt').textContent = formatMoney(result.total_amt);
+            document.getElementById('stat-total-price').textContent = formatMoney(result.total_price);
+            document.getElementById('stat-total-tax').textContent = formatMoney(result.total_tax);
             document.getElementById('stat-seller-cnt').textContent = result.seller_cnt || 0;
             renderSellerRanking(result.top_sellers || []);
             renderMonthlyAmountChart(result.monthly_summary || []);
@@ -659,7 +669,7 @@ const API_BASE = '/api';
                 html += '<div class="flex-1 min-w-0">';
                 html += '<div class="flex justify-between items-center mb-1">';
                 html += '<span class="text-sm text-text-primary truncate" style="max-width:60%;">' + escapeHtml(s.seller || '未知') + '</span>';
-                html += '<span class="text-xs font-semibold" style="color:#6366f1">¥' + formatMoney(s.amt) + ' <span style="color:#94a3b8;font-weight:400;">(' + s.cnt + '张)</span></span>';
+                html += '<span class="text-xs font-semibold" style="color:#6366f1">' + formatMoney(s.amt) + ' <span style="color:#94a3b8;font-weight:400;">(' + s.cnt + '张)</span></span>';
                 html += '</div>';
                 html += '<div style="height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#a78bfa,#8b5cf6);border-radius:3px;transition:width 0.6s ease;"></div></div>';
                 html += '</div></div>';

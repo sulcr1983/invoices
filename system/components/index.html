@@ -653,6 +653,18 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="generic-modal">
+        <div class="modal-box" style="max-width:520px;">
+            <div class="flex items-center justify-between px-6 py-4" style="background:linear-gradient(135deg,#f5f3ff 0%,#eef2ff 100%);border-bottom:1px solid #e0e7ff;">
+                <h3 class="text-text-primary font-bold text-lg" id="generic-modal-title"></h3>
+                <button onclick="closeGenericModal()" class="w-9 h-9 rounded-xl hover:bg-white/60 flex items-center justify-center transition-all">
+                    <i class="fa fa-times text-text-muted text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6" id="generic-modal-body"></div>
+        </div>
+    </div>
+
     <div class="toast-container" id="toast-container"></div>
 
     <script src="app.js"></script>
