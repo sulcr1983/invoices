@@ -24,7 +24,8 @@ from system.services.file_service import (
     get_archive_path, move_to_failed, move_to_duplicate
 )
 from system.extractor import extract_invoice
-from system.api_server import app, add_log, clear_logs, process_logs
+from system.api_server import app
+from system.routes.shared import add_log, clear_logs, process_logs
 
 PASS = 0
 FAIL = 0
@@ -357,11 +358,14 @@ test("超大页码不崩溃",
 
 # C15. 处理中的确认弹窗（通过JS检查模态框结构）
 # 后端层面验证 /api/tasks/process 重复调用不崩
+import time
+time.sleep(1)
 resp16 = client.post('/api/tasks/process')
+time.sleep(0.5)
 resp17 = client.post('/api/tasks/process')
 test("连续两次处理请求不崩溃",
-     resp16.status_code == 200 and resp17.status_code == 200,
-     "两次调用均返回 200")
+     resp16.status_code == 200 and resp17.status_code in (200, 409),
+     "两次调用均返回正常(第二次可能409=处理中)")
 
 # ================================================================
 # D. 数据完整性测试
