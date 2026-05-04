@@ -1,0 +1,18 @@
+# 天颐发票处理系统 - 依赖清单
+# Python >= 3.8
+# 安装: pip install -r requirements.txt
+
+# 核心依赖
+Flask==3.1.0                # Web API服务器
+requests==2.32.3            # HTTP请求（百度OCR、Webhook推送）
+aiohttp==3.11.12            # 异步HTTP请求（并行推送）
+pandas==2.2.3               # 数据处理、CSV导出
+pillow==11.1.0              # 图片处理
+python-dotenv==1.1.0        # .env 配置文件读取
+
+# PDF处理
+pdfplumber==0.11.5          # PDF文本提取（后备方案）
+PyMuPDF==1.25.4             # PDF转图片渲染（百度OCR预处理，速度比pdfplumber快10倍）
+
+# Excel导出（可选）
+openpyxl==3.1.5             # Excel文件处理

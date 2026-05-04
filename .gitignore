@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+
+# Database (production data is in system/data/)
+system/data/*.db
+system/data/*.backup
+
+# Temporary processing files
+X-处理中临时/*
+
+# User data directories
+待识别发票/*
+已归档发票/*
+识别失败待处理/*
+重复发票记录/*
+
+# Logs
+*.log
+
+# Web hooks secrets
+*.json
+
+# Personal notes
+system/README.md
+
+# Build artifacts
+*.zip
+*.rar
+*.7z
+
+# CSV exports
+发票台账.csv
