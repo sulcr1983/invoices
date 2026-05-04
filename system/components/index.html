@@ -660,6 +660,17 @@
                         </div>
                     </div>
                 </div>
+                <div class="glass-card p-5 float-up cursor-pointer" onclick="loadDeductionAlert()" id="deduction-alert-card">
+                    <div class="flex items-center gap-4">
+                        <div class="icon-circle" style="background:#fef3c7;color:#f59e0b;">
+                            <i class="fa fa-clock-o"></i>
+                        </div>
+                        <div>
+                            <p class="stat-label">认证到期预警</p>
+                            <p class="stat-number" style="color:#f59e0b" id="stat-deduction-alert">-</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="grid md:grid-cols-5 gap-4 mb-6">
@@ -746,10 +757,67 @@
                                 <input id="search-amt-to" type="number" placeholder="最高" class="input-field input-field-sm">
                             </div>
                         </div>
+                        <div>
+                            <label class="block text-text-muted text-xs mb-1.5 font-medium">发票类型</label>
+                            <select id="search-invoice-type" class="input-field input-field-sm">
+                                <option value="">全部</option>
+                                <option value="增值税电子普通发票">增值税电子普通发票</option>
+                                <option value="增值税普通发票">增值税普通发票</option>
+                                <option value="增值税专用发票">增值税专用发票</option>
+                                <option value="增值税电子专用发票">增值税电子专用发票</option>
+                                <option value="铁路客票">铁路客票</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-text-muted text-xs mb-1.5 font-medium">推送状态</label>
+                            <select id="search-push-status" class="input-field input-field-sm">
+                                <option value="">全部</option>
+                                <option value="success">已推送</option>
+                                <option value="failed">推送失败</option>
+                                <option value="pending">待推送</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="mt-4 flex justify-end gap-2">
+                        <button id="btn-toggle-stats" class="btn-ghost" style="font-size:12px;color:#6366f1;"><i class="fa fa-bar-chart"></i> 统计</button>
                         <button id="btn-reset" class="btn-ghost"><i class="fa fa-undo"></i> 重置</button>
                         <button id="btn-search" class="btn-primary btn-primary-sm"><i class="fa fa-search"></i> 查询</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 统计概览区 -->
+            <div id="stats-panel" class="mb-6" style="display:none;">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="glass-card p-4">
+                        <p class="text-text-muted text-xs mb-1">发票总额</p>
+                        <p class="text-xl font-bold" style="color:#6366f1" id="stat-total-amt">¥0</p>
+                    </div>
+                    <div class="glass-card p-4">
+                        <p class="text-text-muted text-xs mb-1">不含税金额</p>
+                        <p class="text-xl font-bold" style="color:#10b981" id="stat-total-price">¥0</p>
+                    </div>
+                    <div class="glass-card p-4">
+                        <p class="text-text-muted text-xs mb-1">税额合计</p>
+                        <p class="text-xl font-bold" style="color:#f59e0b" id="stat-total-tax">¥0</p>
+                    </div>
+                    <div class="glass-card p-4">
+                        <p class="text-text-muted text-xs mb-1">销售方数量</p>
+                        <p class="text-xl font-bold" style="color:#ec4899" id="stat-seller-cnt">0</p>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-building" style="color:#6366f1;margin-right:6px;"></i>销售方金额 TOP10</h4>
+                        </div>
+                        <div id="seller-ranking"></div>
+                    </div>
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-calendar" style="color:#6366f1;margin-right:6px;"></i>月度金额趋势</h4>
+                        </div>
+                        <div id="monthly-amount-chart"></div>
                     </div>
                 </div>
             </div>
@@ -1235,6 +1303,7 @@
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
             document.getElementById('hero-pending-count').textContent = data.directory_status.pending || 0;
+            loadDeductionAlertCount();
             renderTrendChart(data);
             renderRecentResults(data);
             const tbody = document.getElementById('recent-invoices-body');
@@ -1255,6 +1324,57 @@
             });
         }
 
+        async function loadDeductionAlertCount() {
+            var result = await apiRequest('/stats/deduction-alert');
+            if (!result) return;
+            var expired = result.expired_count || 0;
+            var expiring = result.expiring_count || 0;
+            var total = expired + expiring;
+            var el = document.getElementById('stat-deduction-alert');
+            if (total > 0) {
+                el.textContent = total + ' 张';
+                el.style.color = expired > 0 ? '#dc2626' : '#f59e0b';
+            } else {
+                el.textContent = '0';
+                el.style.color = '#10b981';
+            }
+        }
+
+        async function loadDeductionAlert() {
+            var result = await apiRequest('/stats/deduction-alert');
+            if (!result) return;
+            var expired = result.expired || [];
+            var expiring = result.expiring || [];
+            var html = '<div style="max-height:400px;overflow-y:auto;">';
+            if (expired.length > 0) {
+                html += '<div class="mb-4"><h4 style="color:#dc2626;font-size:13px;font-weight:600;margin-bottom:8px;"><i class="fa fa-times-circle"></i> 已过期（不可抵扣）</h4>';
+                expired.forEach(function(inv) {
+                    html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #fef2f2;font-size:12px;">';
+                    html += '<span class="font-mono">' + escapeHtml(inv.invoice_num) + '</span>';
+                    html += '<span>' + escapeHtml(inv.seller || '') + '</span>';
+                    html += '<span style="color:#dc2626;">过期' + Math.abs(inv.days_remaining) + '天</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            if (expiring.length > 0) {
+                html += '<div><h4 style="color:#d97706;font-size:13px;font-weight:600;margin-bottom:8px;"><i class="fa fa-exclamation-circle"></i> 即将到期（30天内）</h4>';
+                expiring.forEach(function(inv) {
+                    html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #fffbeb;font-size:12px;">';
+                    html += '<span class="font-mono">' + escapeHtml(inv.invoice_num) + '</span>';
+                    html += '<span>' + escapeHtml(inv.seller || '') + '</span>';
+                    html += '<span style="color:#d97706;">剩' + inv.days_remaining + '天</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            if (expired.length === 0 && expiring.length === 0) {
+                html += '<div class="text-center py-6"><i class="fa fa-check-circle text-2xl" style="color:#10b981;"></i><p class="text-sm mt-2" style="color:#10b981;">暂无到期预警</p></div>';
+            }
+            html += '</div>';
+            showModal('认证到期预警', html);
+        }
+
         async function loadSellers() {
             const data = await apiRequest('/sellers');
             if (!data) return;
@@ -1271,6 +1391,8 @@
             var seller = document.getElementById('search-seller').value;
             var amtFrom = document.getElementById('search-amt-from').value;
             var amtTo = document.getElementById('search-amt-to').value;
+            var invoiceType = document.getElementById('search-invoice-type').value;
+            var pushStatus = document.getElementById('search-push-status').value;
             var params = new URLSearchParams();
             if (keyword) params.append('keyword', keyword);
             if (dateFrom) params.append('date_from', dateFrom);
@@ -1278,6 +1400,8 @@
             if (seller) params.append('seller', seller);
             if (amtFrom) params.append('amt_from', amtFrom);
             if (amtTo) params.append('amt_to', amtTo);
+            if (invoiceType) params.append('invoice_type', invoiceType);
+            if (pushStatus) params.append('push_status', pushStatus);
             params.append('page', page);
             params.append('limit', PAGE_LIMIT);
             var data = await apiRequest('/invoices?' + params.toString());
@@ -1289,7 +1413,13 @@
             } else {
                 data.invoices.forEach(function(inv) {
                     var tr = document.createElement('tr');
-                    tr.innerHTML = '<td class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + '</td>' +
+                    var deductionTag = '';
+                    if (inv.deduction_status === 'expired') {
+                        deductionTag = ' <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fef2f2;color:#dc2626;">已过期</span>';
+                    } else if (inv.deduction_status === 'expiring') {
+                        deductionTag = ' <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fffbeb;color:#d97706;">剩' + inv.days_remaining + '天</span>';
+                    }
+                    tr.innerHTML = '<td class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + deductionTag + '</td>' +
                         '<td class="font-medium text-text-primary">' + escapeHtml(inv.seller) + '</td>' +
                         '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
                         '<td class="text-text-primary">' + escapeHtml(inv.buyer) + '</td>' +
@@ -1636,6 +1766,83 @@
             tbody.innerHTML = html;
         }
 
+        var statsVisible = false;
+        function toggleStats() {
+            statsVisible = !statsVisible;
+            var panel = document.getElementById('stats-panel');
+            var btn = document.getElementById('btn-toggle-stats');
+            if (statsVisible) {
+                panel.style.display = '';
+                btn.innerHTML = '<i class="fa fa-bar-chart"></i> 收起统计';
+                loadStatsSummary();
+            } else {
+                panel.style.display = 'none';
+                btn.innerHTML = '<i class="fa fa-bar-chart"></i> 统计';
+            }
+        }
+
+        async function loadStatsSummary() {
+            var dateFrom = document.getElementById('search-date-from').value;
+            var dateTo = document.getElementById('search-date-to').value;
+            var params = [];
+            if (dateFrom) params.push('date_from=' + dateFrom);
+            if (dateTo) params.push('date_to=' + dateTo);
+            var url = '/stats/summary' + (params.length ? '?' + params.join('&') : '');
+            var result = await apiRequest(url);
+            if (!result) return;
+            document.getElementById('stat-total-amt').textContent = '¥' + formatMoney(result.total_amt);
+            document.getElementById('stat-total-price').textContent = '¥' + formatMoney(result.total_price);
+            document.getElementById('stat-total-tax').textContent = '¥' + formatMoney(result.total_tax);
+            document.getElementById('stat-seller-cnt').textContent = result.seller_cnt || 0;
+            renderSellerRanking(result.top_sellers || []);
+            renderMonthlyAmountChart(result.monthly_summary || []);
+        }
+
+        function renderSellerRanking(sellers) {
+            var container = document.getElementById('seller-ranking');
+            if (sellers.length === 0) {
+                container.innerHTML = '<p class="text-text-muted text-sm text-center py-4">暂无数据</p>';
+                return;
+            }
+            var maxAmt = Math.max(...sellers.map(function(s) { return s.amt; }), 1);
+            var html = '';
+            sellers.forEach(function(s, i) {
+                var pct = Math.max(5, (s.amt / maxAmt) * 100);
+                html += '<div class="flex items-center gap-3 mb-3 last:mb-0">';
+                html += '<span class="text-xs font-bold w-5 text-right" style="color:' + (i < 3 ? '#6366f1' : '#94a3b8') + ';">' + (i + 1) + '</span>';
+                html += '<div class="flex-1 min-w-0">';
+                html += '<div class="flex justify-between items-center mb-1">';
+                html += '<span class="text-sm text-text-primary truncate" style="max-width:60%;">' + escapeHtml(s.seller || '未知') + '</span>';
+                html += '<span class="text-xs font-semibold" style="color:#6366f1">¥' + formatMoney(s.amt) + ' <span style="color:#94a3b8;font-weight:400;">(' + s.cnt + '张)</span></span>';
+                html += '</div>';
+                html += '<div style="height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#a78bfa,#8b5cf6);border-radius:3px;transition:width 0.6s ease;"></div></div>';
+                html += '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function renderMonthlyAmountChart(monthly) {
+            var container = document.getElementById('monthly-amount-chart');
+            if (monthly.length === 0) {
+                container.innerHTML = '<p class="text-text-muted text-sm text-center py-4">暂无数据</p>';
+                return;
+            }
+            monthly.reverse();
+            var maxAmt = Math.max(...monthly.map(function(m) { return m.amt; }), 1);
+            var html = '<div style="display:flex;align-items:flex-end;gap:6px;height:120px;">';
+            monthly.forEach(function(m) {
+                var pct = Math.max(3, (m.amt / maxAmt) * 100);
+                var label = m.month ? m.month.substring(5) : '';
+                html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">';
+                html += '<div style="font-size:10px;color:#6366f1;font-weight:600;">¥' + (m.amt >= 10000 ? (m.amt / 10000).toFixed(1) + '万' : m.amt.toFixed(0)) + '</div>';
+                html += '<div style="width:100%;max-width:28px;height:' + pct + '%;background:linear-gradient(180deg,#a78bfa,#8b5cf6);border-radius:4px 4px 2px 2px;min-height:3px;transition:height 0.6s ease;"></div>';
+                html += '<div style="font-size:10px;color:#94a3b8;">' + label + '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
         async function exportCSV() {
             var data = await apiRequest('/export/invoices');
             if (!data || data.invoices.length === 0) { showToast('没有可导出的发票数据', 'warning'); return; }
@@ -1677,9 +1884,12 @@
             document.getElementById('btn-reset').addEventListener('click', function() {
                 document.querySelectorAll('#page-invoices input').forEach(function(inp) { inp.value = ''; });
                 document.getElementById('search-seller').value = '';
+                document.getElementById('search-invoice-type').value = '';
+                document.getElementById('search-push-status').value = '';
                 loadInvoices(1);
             });
             document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+            document.getElementById('btn-toggle-stats').addEventListener('click', toggleStats);
             document.getElementById('btn-start-process-top').addEventListener('click', startProcessing);
             document.getElementById('hero-start-process').addEventListener('click', startProcessing);
             document.getElementById('btn-confirm-process').addEventListener('click', doStartProcessing);

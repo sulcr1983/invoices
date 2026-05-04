@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def query_records(self, invoice_num=None, seller=None, buyer=None,
                   date_from=None, date_to=None, invoice_type=None,
-                  push_status=None, keyword=None,
+                  push_status=None, keyword=None, tax_rate=None,
                   amt_from=None, amt_to=None,
                   order_by="process_time", order_dir="DESC",
                   limit=None, offset=None):
@@ -39,11 +39,14 @@ def query_records(self, invoice_num=None, seller=None, buyer=None,
         conditions.append("total_amount <= ?")
         params.append(float(amt_to))
     if invoice_type:
-        conditions.append("invoice_type = ?")
-        params.append(invoice_type)
+        conditions.append("invoice_type LIKE ?")
+        params.append(f"%{invoice_type}%")
     if push_status:
         conditions.append("push_status = ?")
         params.append(push_status)
+    if tax_rate:
+        conditions.append("tax_rate LIKE ?")
+        params.append(f"%{tax_rate}%")
     if keyword:
         conditions.append("(invoice_num LIKE ? OR seller LIKE ? OR buyer LIKE ? OR item LIKE ?)")
         kw = f"%{keyword}%"
