@@ -1,7 +1,9 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from .shared import db_manager, api_error
+from ..config import ARCHIVE_DIR
 
 invoices_bp = Blueprint('invoices', __name__)
 
@@ -135,6 +137,26 @@ def get_invoice_detail(invoice_num):
         if not record:
             return {'status': 'error', 'message': '发票不存在'}, 404
         return {'status': 'success', 'data': record}
+    except Exception as e:
+        return api_error(str(e))
+
+
+@invoices_bp.route('/api/invoices/<invoice_num>/original', methods=['GET'])
+def get_invoice_original(invoice_num):
+    try:
+        archive_root = Path(ARCHIVE_DIR)
+        if not archive_root.exists():
+            return {'status': 'error', 'message': '归档目录不存在'}, 404
+        for year_dir in sorted(archive_root.iterdir(), reverse=True):
+            if not year_dir.is_dir():
+                continue
+            for month_dir in sorted(year_dir.iterdir(), reverse=True):
+                if not month_dir.is_dir():
+                    continue
+                for fp in month_dir.iterdir():
+                    if fp.is_file() and invoice_num in fp.stem:
+                        return send_file(str(fp), mimetype='image/jpeg')
+        return {'status': 'error', 'message': '原图未找到'}, 404
     except Exception as e:
         return api_error(str(e))
 

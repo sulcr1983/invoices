@@ -114,6 +114,19 @@ const API_BASE = '/api';
             }
         }
 
+        function togglePreviewSection() {
+            var content = document.getElementById('detail-preview-content');
+            var icon = document.getElementById('preview-toggle-icon');
+            if (!content) return;
+            if (content.style.display === 'none') {
+                content.style.display = '';
+                if (icon) icon.style.transform = 'rotate(180deg)';
+            } else {
+                content.style.display = 'none';
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
         function toggleLogPanel() {
             var content = document.getElementById('log-panel-content');
             var icon = document.getElementById('log-toggle-icon');
@@ -720,6 +733,39 @@ const API_BASE = '/api';
             var viewBtn = document.getElementById('btn-view-original');
             if (data.file_md5) { viewBtn.dataset.md5 = data.file_md5; viewBtn.style.display = 'inline-flex'; }
             else { viewBtn.style.display = 'none'; }
+
+            var imgContainer = document.getElementById('detail-original-image');
+            var ocrContainer = document.getElementById('detail-ocr-result');
+            if (imgContainer) {
+                if (data.file_md5) {
+                    imgContainer.innerHTML = '<img src="/api/invoices/' + encodeURIComponent(invoiceNum) + '/original" style="width:100%;border-radius:6px;cursor:pointer;" onclick="window.open(this.src,\'_blank\')" />';
+                } else {
+                    imgContainer.innerHTML = '<span class="text-text-muted text-xs">暂无原图</span>';
+                }
+            }
+            if (ocrContainer) {
+                var ocrFields = [
+                    ['发票号码', data.invoice_num],
+                    ['发票代码', data.invoice_code],
+                    ['销售方', data.seller],
+                    ['购买方', data.buyer],
+                    ['价税合计', data.total_amount],
+                    ['不含税金额', data.price_without_tax],
+                    ['税率', data.tax_rate],
+                    ['税额', data.tax_amount],
+                    ['开票日期', data.date],
+                    ['项目内容', data.item]
+                ];
+                var ocrHtml = '<table style="width:100%;border-collapse:collapse;">';
+                ocrFields.forEach(function(pair) {
+                    if (pair[1]) {
+                        ocrHtml += '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 6px;color:#94a3b8;white-space:nowrap;">' + pair[0] + '</td><td style="padding:3px 6px;color:#1e293b;font-weight:500;">' + escapeHtml(String(pair[1])) + '</td></tr>';
+                    }
+                });
+                ocrHtml += '</table>';
+                ocrContainer.innerHTML = ocrHtml;
+            }
+
             document.getElementById('invoice-detail-modal').classList.add('show');
         }
 

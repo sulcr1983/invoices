@@ -7,7 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script>
         tailwind.config = {
@@ -27,7 +27,8 @@
                         'border-light': '#f1f5f9',
                     },
                     fontFamily: {
-                        sans: ['"PingFang SC"', '"Microsoft YaHei"', '"Helvetica Neue"', 'system-ui', 'sans-serif'],
+                        sans: ['"Outfit"', '"PingFang SC"', '"Microsoft YaHei"', '"Helvetica Neue"', 'system-ui', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', '"Consolas"', 'monospace'],
                     },
                 }
             }
@@ -446,7 +447,7 @@
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:var(--color-primary);box-shadow:0 2px 8px rgba(99,102,241,0.2);"><i class="fa fa-file-text-o text-white" style="font-size:14px;"></i></div>
                     <div>
-                        <h3 style="font-family:'Noto Serif SC',serif;font-size:16px;font-weight:700;color:#1e293b;letter-spacing:0.02em;">发票详情</h3>
+                        <h3 style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;color:#1e293b;letter-spacing:0.02em;">发票详情</h3>
                         <p style="font-size:11px;color:#94a3b8;letter-spacing:0.05em;">INVOICE DETAIL</p>
                     </div>
                 </div>
@@ -461,9 +462,9 @@
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #f1f5f9;">
                     <div style="flex:1;">
                         <p style="font-size:11px;color:#94a3b8;margin-bottom:4px;letter-spacing:0.04em;">发票号码</p>
-                        <p id="detail-invoice-num" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:500;color:var(--color-primary);letter-spacing:0.06em;margin-bottom:8px;"></p>
+                        <p id="detail-invoice-num" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:var(--color-primary);letter-spacing:0.06em;margin-bottom:8px;"></p>
                         <div style="display:flex;gap:16px;">
-                            <span style="font-size:12px;color:#94a3b8;">代码 <span id="detail-invoice-code" style="font-family:'DM Mono',monospace;color:#475569;font-weight:500;"></span></span>
+                            <span style="font-size:12px;color:#94a3b8;">代码 <span id="detail-invoice-code" style="font-family:'JetBrains Mono',monospace;color:#475569;font-weight:500;"></span></span>
                             <span style="font-size:12px;color:#94a3b8;">日期 <span id="detail-date" style="color:#475569;font-weight:500;"></span></span>
                             <span id="detail-invoice-type" class="badge badge-primary" style="font-size:10px;"></span>
                         </div>
@@ -471,34 +472,26 @@
                     <div style="text-align:right;flex-shrink:0;margin-left:24px;">
                         <div style="background:linear-gradient(135deg,#faf5ff,#eef2ff);border-radius:14px;padding:14px 20px;min-width:180px;border:1px solid rgba(99,102,241,0.06);">
                             <p style="font-size:10px;color:#94a3b8;letter-spacing:0.06em;margin-bottom:2px;">价税合计</p>
-                            <p id="detail-total-amount" style="font-family:'Noto Serif SC',serif;font-size:26px;font-weight:700;color:var(--color-primary);line-height:1.2;"></p>
+                            <p id="detail-total-amount" style="font-family:'Outfit',sans-serif;font-size:26px;font-weight:700;color:var(--color-primary);line-height:1.2;"></p>
                             <div style="display:flex;justify-content:center;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(99,102,241,0.08);">
-                                <div style="text-align:center;"><p style="font-size:9px;color:#94a3b8;">不含税</p><p id="detail-price-without-tax" style="font-family:'DM Mono',monospace;font-size:11px;color:#475569;font-weight:500;"></p></div>
-                                <div style="text-align:center;"><p style="font-size:9px;color:#94a3b8;">税率</p><p id="detail-tax-rate" style="font-family:'DM Mono',monospace;font-size:11px;color:#475569;font-weight:500;"></p></div>
-                                <div style="text-align:center;"><p style="font-size:9px;color:#94a3b8;">税额</p><p id="detail-tax-amount" style="font-family:'DM Mono',monospace;font-size:11px;color:#475569;font-weight:500;"></p></div>
+                                <div style="text-align:center;"><p style="font-size:9px;color:#94a3b8;">不含税</p><p id="detail-price-without-tax" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#475569;font-weight:500;"></p></div>
+                                <div style="text-align:center;"><p style="font-size:9px;color:#94a3b8;">税率</p><p id="detail-tax-rate" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#475569;font-weight:500;"></p></div>
+                                <div style="text-align:center;"><p style="font-size:9px;color:#94a3b8;">税额</p><p id="detail-tax-amount" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#475569;font-weight:500;"></p></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 合规状态条 -->
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <i class="fa fa-shield" style="color:var(--color-primary);font-size:11px;"></i>
-                        <span style="font-size:12px;color:#64748b;font-weight:600;">验真</span>
-                        <span id="detail-verify-badge"></span>
-                        <button id="btn-verify-invoice" class="px-2 py-0.5 rounded text-xs font-medium" style="background:var(--color-primary-bg);color:var(--color-primary);font-size:11px;" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i></button>
-                        <p id="detail-verify-message" class="text-xs" style="color:#94a3b8;display:none;font-size:10px;"></p>
-                    </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
+                    <span id="detail-verify-badge"></span>
+                    <button id="btn-verify-invoice" class="px-2 py-0.5 rounded text-xs font-medium" style="background:var(--color-primary-bg);color:var(--color-primary);font-size:11px;" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i> 验真</button>
+                    <p id="detail-verify-message" class="text-xs" style="color:#94a3b8;display:none;font-size:10px;"></p>
                     <div style="width:1px;height:18px;background:#e2e8f0;"></div>
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <i class="fa fa-check-circle-o" style="color:var(--color-primary);font-size:11px;"></i>
-                        <span style="font-size:12px;color:#64748b;font-weight:600;">认证</span>
-                        <span id="detail-certification-badge"></span>
-                    </div>
+                    <span style="font-size:12px;color:#64748b;font-weight:600;">认证</span>
+                    <span id="detail-certification-badge"></span>
                     <div id="detail-risk-badge-area" style="display:none;align-items:center;gap:6px;">
                         <div style="width:1px;height:18px;background:#e2e8f0;"></div>
-                        <i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:11px;"></i>
                         <span id="detail-risk-badge"></span>
                     </div>
                 </div>
@@ -509,24 +502,51 @@
                     <div id="detail-verify-result-content" style="font-size:11px;color:#64748b;max-height:150px;overflow-y:auto;"></div>
                 </div>
 
+                <!-- 发票原图+OCR对照 -->
+                <div id="detail-preview-section" style="margin-bottom:12px;border:1px solid #f1f5f9;border-radius:10px;overflow:hidden;">
+                    <div style="padding:10px 14px;background:#f8fafc;cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="togglePreviewSection()">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <div style="width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--color-primary-bg);"><i class="fa fa-image" style="color:var(--color-primary);font-size:10px;"></i></div>
+                            <span style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1e293b;">发票原图 · OCR对照</span>
+                        </div>
+                        <i class="fa fa-chevron-down text-text-muted text-xs" id="preview-toggle-icon" style="transition:transform 0.2s;"></i>
+                    </div>
+                    <div id="detail-preview-content" style="display:none;padding:14px;background:#fff;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div>
+                                <p style="font-size:11px;color:#94a3b8;margin-bottom:6px;font-weight:500;">发票原图</p>
+                                <div id="detail-original-image" style="border:1px solid #f1f5f9;border-radius:8px;overflow:hidden;min-height:120px;display:flex;align-items:center;justify-content:center;background:#fafafa;">
+                                    <span class="text-text-muted text-xs">暂无原图</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p style="font-size:11px;color:#94a3b8;margin-bottom:6px;font-weight:500;">OCR识别结果</p>
+                                <div id="detail-ocr-result" style="border:1px solid #f1f5f9;border-radius:8px;padding:10px;min-height:120px;background:#fafafa;font-size:11px;color:#64748b;max-height:200px;overflow-y:auto;">
+                                    <span class="text-text-muted text-xs">暂无OCR数据</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 往来方+项目内容 -->
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                     <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #f1f5f9;">
                         <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
                             <div style="width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--color-primary-bg);"><i class="fa fa-users" style="color:var(--color-primary);font-size:10px;"></i></div>
-                            <span style="font-family:'Noto Serif SC',serif;font-size:13px;font-weight:600;color:#1e293b;">往来方</span>
+                            <span style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1e293b;">往来方</span>
                         </div>
                         <div style="display:flex;flex-direction:column;gap:6px;">
                             <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:#94a3b8;">销售方</span><span id="detail-seller" style="font-size:12px;font-weight:500;color:#1e293b;text-align:right;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
-                            <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:#94a3b8;">销售方税号</span><span id="detail-seller-tax-id" style="font-family:'DM Mono',monospace;font-size:11px;color:#64748b;"></span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:#94a3b8;">销售方税号</span><span id="detail-seller-tax-id" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;"></span></div>
                             <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:#94a3b8;">购买方</span><span id="detail-buyer" style="font-size:12px;font-weight:500;color:#1e293b;text-align:right;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
-                            <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:#94a3b8;">购买方税号</span><span id="detail-buyer-tax-id" style="font-family:'DM Mono',monospace;font-size:11px;color:#64748b;"></span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:#94a3b8;">购买方税号</span><span id="detail-buyer-tax-id" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;"></span></div>
                         </div>
                     </div>
                     <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #f1f5f9;">
                         <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
                             <div style="width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--color-primary-bg);"><i class="fa fa-shopping-cart" style="color:var(--color-primary);font-size:10px;"></i></div>
-                            <span style="font-family:'Noto Serif SC',serif;font-size:13px;font-weight:600;color:#1e293b;">项目内容</span>
+                            <span style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1e293b;">项目内容</span>
                         </div>
                         <p id="detail-item" style="font-size:12px;color:#64748b;line-height:1.6;"></p>
                     </div>
@@ -537,7 +557,7 @@
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                         <div style="display:flex;align-items:center;gap:6px;">
                             <div style="width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--color-primary-bg);"><i class="fa fa-tag" style="color:var(--color-primary);font-size:10px;"></i></div>
-                            <span style="font-family:'Noto Serif SC',serif;font-size:13px;font-weight:600;color:#1e293b;">费用归属</span>
+                            <span style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1e293b;">费用归属</span>
                         </div>
                         <button id="btn-save-attribution" class="btn-primary btn-primary-sm" style="font-size:11px;padding:4px 14px;"><i class="fa fa-save"></i> 保存</button>
                     </div>
@@ -566,7 +586,7 @@
                 <div style="margin-bottom:16px;">
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
                         <div style="width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--color-primary-bg);"><i class="fa fa-sticky-note" style="color:var(--color-primary);font-size:10px;"></i></div>
-                        <span style="font-family:'Noto Serif SC',serif;font-size:13px;font-weight:600;color:#1e293b;">备注</span>
+                        <span style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1e293b;">备注</span>
                     </div>
                     <textarea id="detail-remark" class="input-field" rows="2" placeholder="点击编辑备注..." style="font-size:12px;"></textarea>
                 </div>
@@ -618,9 +638,9 @@
                     <input type="checkbox" id="verify-no-remind" style="accent-color:var(--color-primary);width:16px;height:16px;">
                     <span class="text-text-secondary text-xs">不再提示费用确认（后续直接验真）</span>
                 </label>
-                <div class="flex gap-2 justify-center">
-                    <button onclick="closeVerifyConfirm()" class="btn-ghost" style="min-width:100px;">取消</button>
-                    <button onclick="confirmVerify()" class="btn-primary btn-primary-sm" style="min-width:100px;"><i class="fa fa-check"></i> 确认验真</button>
+                <div style="display:flex;gap:12px;justify-content:center;">
+                    <button onclick="closeVerifyConfirm()" class="btn-ghost" style="min-width:120px;text-align:center;">取消</button>
+                    <button onclick="confirmVerify()" class="btn-primary btn-primary-sm" style="min-width:120px;text-align:center;"><i class="fa fa-check"></i> 确认验真</button>
                 </div>
             </div>
         </div>
@@ -658,7 +678,7 @@
             <div class="flex items-center justify-between px-5 py-3" style="background:linear-gradient(135deg,#f8fafc,#eef2ff);border-bottom:1px solid #e2e8f0;">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--color-primary);"><i class="fa fa-tag text-white" style="font-size:13px;"></i></div>
-                    <h3 style="font-family:'Noto Serif SC',serif;font-size:15px;font-weight:700;color:#1e293b;">批量设置归属</h3>
+                    <h3 style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:#1e293b;">批量设置归属</h3>
                 </div>
                 <button onclick="closeBatchAttributionModal()" class="w-8 h-8 rounded-lg hover:bg-white/80 flex items-center justify-center transition-all"><i class="fa fa-times text-text-muted"></i></button>
             </div>
