@@ -2,7 +2,6 @@ import re
 import logging
 import sys
 from pathlib import Path
-from datetime import datetime
 
 _THIS_DIR = str(Path(__file__).resolve().parent)
 if _THIS_DIR not in sys.path:

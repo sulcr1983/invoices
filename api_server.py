@@ -4,7 +4,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from system.api_server import app
-from system.routes.shared import db_manager, add_log, clear_logs, process_logs
 
 if __name__ == '__main__':
     print("天颐发票处理系统 API服务器启动中...")

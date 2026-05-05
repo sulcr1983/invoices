@@ -1,4 +1,3 @@
-import json
 import logging
 try:
     from ..config import INVOICE_FIELD_NAMES

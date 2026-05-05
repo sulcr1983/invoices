@@ -15,11 +15,6 @@ if _PARENT_DIR not in sys.path:
     sys.path.insert(0, _PARENT_DIR)
 
 try:
-    from ..config import err_to_cn
-except ImportError:
-    from config import err_to_cn
-
-try:
     from .pdf_utils import pdf_to_images_via_pymupdf
 except ImportError:
     from core.pdf_utils import pdf_to_images_via_pymupdf
@@ -172,8 +167,6 @@ def extract_from_baidu_vat_invoice(file_path):
     except Exception as e:
         logger.error(f"百度增值税发票识别异常: {file_path}, 错误: {e}")
         return None
-
-    return None
 
 
 def _extract_from_ofd_via_ocr(file_path, access_token):

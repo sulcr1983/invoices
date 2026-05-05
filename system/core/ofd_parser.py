@@ -2,7 +2,6 @@ import zipfile
 import xml.etree.ElementTree as ET
 import re
 import logging
-from io import BytesIO
 
 try:
     from .data_utils import clean_amount, clean_date, clean_seller_name
@@ -15,8 +14,6 @@ except ImportError:
     from config import INVOICE_TEMPLATE
 
 logger = logging.getLogger(__name__)
-
-OFD_NS = 'http://www.ofdspec.org/2016'
 
 
 def is_ofd_file(file_path):
@@ -312,7 +309,6 @@ def _extract_buyer_from_texts(texts, buyer_tax_id=''):
 
 def _extract_amounts_from_texts(texts):
     amounts = {}
-    amount_pattern = re.compile(r'[\d]+\.?\d*')
     found_amounts = []
     for text in texts:
         if '¥' in text or '￥' in text:
