@@ -1,6 +1,7 @@
 import base64
 import logging
 import time
+import zipfile
 import requests
 
 import sys
@@ -94,7 +95,9 @@ def extract_from_baidu_vat_invoice(file_path):
 
     try:
         ext = file_path.lower()
-        if ext.endswith('.pdf'):
+        if ext.endswith('.ofd'):
+            return _extract_from_ofd_via_ocr(file_path, access_token)
+        elif ext.endswith('.pdf'):
             images = pdf_to_images_via_pymupdf(file_path)
             if not images:
                 logger.warning(f"PDF转图片失败: {file_path}")
@@ -171,3 +174,68 @@ def extract_from_baidu_vat_invoice(file_path):
         return None
 
     return None
+
+
+def _extract_from_ofd_via_ocr(file_path, access_token):
+    try:
+        images = []
+        with zipfile.ZipFile(file_path, 'r') as zf:
+            for name in zf.namelist():
+                lower_name = name.lower()
+                if lower_name.endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                    try:
+                        img_data = zf.read(name)
+                        if len(img_data) > 500:
+                            images.append(img_data)
+                    except Exception:
+                        continue
+
+        if not images:
+            logger.warning(f"OFD文件中未找到可识别的图片: {file_path}")
+            return None
+
+        images.sort(key=len, reverse=True)
+
+        url = f"https://aip.baidubce.com/rest/2.0/ocr/v1/vat_invoice?access_token={access_token}"
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+        for page_num, img_bytes in enumerate(images, 1):
+            try:
+                image_base64 = base64.b64encode(img_bytes).decode('utf-8')
+                payload = {"image": image_base64}
+
+                logger.info(f"正在调用百度OCR API处理OFD图片(第{page_num}张)...")
+                response = requests.post(url, data=payload, headers=headers, timeout=30)
+
+                if response.status_code != 200:
+                    logger.error(f"HTTP错误: {response.status_code}")
+                    continue
+
+                result = response.json()
+                if "error_code" in result:
+                    logger.error(f"百度API错误: {result}")
+                    continue
+
+                if 'words_result' not in result or not result['words_result']:
+                    logger.warning(f"百度OCR无结果(OFD第{page_num}张图片)")
+                    continue
+
+                words_result = result['words_result']
+                seller_name = words_result.get('SellerName', {})
+                if isinstance(seller_name, dict):
+                    seller_name = seller_name.get('words', '')
+
+                logger.info(f"百度OCR识别OFD成功(第{page_num}张图片): 销售方={seller_name}")
+                return words_result
+            except Exception as e:
+                logger.error(f"百度OCR识别OFD图片异常(第{page_num}张): {file_path}, 错误: {e}")
+                continue
+
+        logger.warning(f"OFD文件所有图片均未识别到发票: {file_path}")
+        return None
+    except zipfile.BadZipFile:
+        logger.error(f"OFD文件格式无效: {file_path}")
+        return None
+    except Exception as e:
+        logger.error(f"OFD文件OCR处理异常: {file_path}, 错误: {e}")
+        return None

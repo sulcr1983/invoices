@@ -172,7 +172,7 @@ def get_stats(self):
     cursor.execute("SELECT COALESCE(SUM(total_amount),0) FROM records")
     total_amt = cursor.fetchone()[0]
     now = datetime.now()
-    cursor.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM records WHERE strftime('%Y-%m', date) = ?",
+    cursor.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM records WHERE strftime('%Y-%m', process_time) = ?",
                    (now.strftime("%Y-%m"),))
     row = cursor.fetchone()
     conn.close()

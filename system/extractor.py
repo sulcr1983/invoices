@@ -6,12 +6,14 @@ try:
     from .core.pdf_utils import extract_from_pdf_plumber
     from .core.text_invoice_parser import parse_invoice_text_fallback
     from .core.invoice_parser import map_baidu_vat_result
+    from .core.ofd_parser import is_ofd_file, extract_invoice_from_ofd
     from .core.data_utils import calculate_file_md5
 except ImportError:
     from core.baidu_ocr import is_baidu_ocr_available, extract_from_baidu_vat_invoice
     from core.pdf_utils import extract_from_pdf_plumber
     from core.text_invoice_parser import parse_invoice_text_fallback
     from core.invoice_parser import map_baidu_vat_result
+    from core.ofd_parser import is_ofd_file, extract_invoice_from_ofd
     from core.data_utils import calculate_file_md5
 
 logger = logging.getLogger(__name__)
@@ -31,26 +33,52 @@ def extract_invoice(file_path):
     ext = fp.suffix.lower()
     record = None
     extraction_method = None
+    details = []
 
-    if is_baidu_ocr_available():
-        words_result = extract_from_baidu_vat_invoice(file_path)
-        if words_result:
-            result = map_baidu_vat_result(words_result)
-            if isinstance(result, tuple) and len(result) == 2:
-                record, details = result
-            else:
-                record = result
-                details = []
-            extraction_method = "BaiduVatInvoice"
+    if ext == '.ofd':
+        ofd_result = extract_invoice_from_ofd(file_path)
+        if ofd_result:
+            if isinstance(ofd_result, tuple) and len(ofd_result) == 2:
+                first, second = ofd_result
+                if first == 'OCR_NEEDED':
+                    logger.info(f"OFD内嵌XML未找到发票数据，尝试OCR识别图片: {file_path}")
+                    if is_baidu_ocr_available():
+                        words_result = extract_from_baidu_vat_invoice(file_path)
+                        if words_result:
+                            result = map_baidu_vat_result(words_result)
+                            if isinstance(result, tuple) and len(result) == 2:
+                                record, details = result
+                            else:
+                                record = result
+                                details = []
+                            extraction_method = "BaiduVatInvoice(OFD)"
+                elif isinstance(first, dict):
+                    record, details = first, second
+                    extraction_method = "OFD_XML"
+            if not record and not extraction_method:
+                record = None
+        else:
+            logger.warning(f"OFD文件解析无结果: {file_path}")
 
-    if not record:
+    if not record and ext != '.ofd':
+        if is_baidu_ocr_available():
+            words_result = extract_from_baidu_vat_invoice(file_path)
+            if words_result:
+                result = map_baidu_vat_result(words_result)
+                if isinstance(result, tuple) and len(result) == 2:
+                    record, details = result
+                else:
+                    record = result
+                    details = []
+                extraction_method = "BaiduVatInvoice"
+
+    if not record and ext == '.pdf':
         logger.info(f"百度OCR未返回可用结果，尝试PDF文本提取: {file_path}")
-        if ext == '.pdf':
-            text = extract_from_pdf_plumber(file_path)
-            if text:
-                record = parse_invoice_text_fallback(text, file_path)
-                extraction_method = "pdfplumber"
-                details = []
+        text = extract_from_pdf_plumber(file_path)
+        if text:
+            record = parse_invoice_text_fallback(text, file_path)
+            extraction_method = "pdfplumber"
+            details = []
 
     if not record:
         logger.warning(f"无法从文件提取数据: {file_path}")

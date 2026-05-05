@@ -515,7 +515,7 @@ const API_BASE = '/api';
             });
             function handleFiles(files) {
                 var formData = new FormData();
-                var validExt = ['pdf','jpg','jpeg','png'];
+                var validExt = ['pdf','ofd','jpg','jpeg','png'];
                 var fileCount = 0;
                 for (var i = 0; i < files.length; i++) {
                     var f = files[i];
@@ -525,7 +525,7 @@ const API_BASE = '/api';
                     fileCount++;
                 }
                 if (fileCount === 0) {
-                    showToast('请选择 PDF、JPG 或 PNG 格式的文件', 'warning');
+                    showToast('请选择 PDF、OFD、JPG 或 PNG 格式的文件', 'warning');
                     return;
                 }
                 var uploadingEl = document.createElement('div');
