@@ -166,10 +166,8 @@ const API_BASE = '/api';
         async function loadDashboard() {
             var statEls = ['stat-pending', 'stat-archived', 'stat-month-cnt', 'hero-pending-count'];
             statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.innerHTML = '<span class="skeleton" style="display:inline-block;width:32px;height:18px;"></span>'; });
-            var dashTbody = document.getElementById('recent-invoices-body');
-            dashTbody.innerHTML = '<tr><td colspan="5" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             const data = await apiRequest('/dashboard');
-            if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); dashTbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-text-muted">加载失败</td></tr>'; return; }
+            if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); return; }
             document.getElementById('stat-pending').textContent = data.directory_status.pending || 0;
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
@@ -178,21 +176,6 @@ const API_BASE = '/api';
             loadDeductionAlertCount();
             renderTrendChart(data);
             renderRecentResults(data);
-            const tbody = document.getElementById('recent-invoices-body');
-            tbody.innerHTML = '';
-            if (!data.recent_invoices || data.recent_invoices.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-text-muted">暂无发票记录</td></tr>';
-                return;
-            }
-            data.recent_invoices.slice(0, 5).forEach(function(inv) {
-                var tr = document.createElement('tr');
-                tr.innerHTML = '<td class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + '</td>' +
-                    '<td class="font-medium text-text-primary">' + escapeHtml(inv.seller) + '</td>' +
-                    '<td class="text-right font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</td>' +
-                    '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
-                    '<td class="text-center"><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-xs hover:underline font-medium btn-detail" style="color:#6366f1">详情</button></td>';
-                tbody.appendChild(tr);
-            });
         }
 
         async function loadDeductionAlertCount() {
@@ -570,7 +553,6 @@ const API_BASE = '/api';
             document.getElementById('detail-tax-rate').textContent = safeText(data.tax_rate);
             document.getElementById('detail-tax-amount').textContent = formatMoney(data.tax_amount);
             document.getElementById('detail-total-amount').textContent = formatMoney(data.total_amount);
-            document.getElementById('detail-check-code').textContent = safeText(data.check_code);
             var deptInput = document.getElementById('detail-department');
             var projInput = document.getElementById('detail-project');
             var expInput = document.getElementById('detail-expense-type');
@@ -641,6 +623,16 @@ const API_BASE = '/api';
             }
             var certBadge = document.getElementById('detail-certification-badge');
             if (certBadge) certBadge.innerHTML = renderCertBadge(data.deduction_status || 'unverified');
+            var riskBadgeArea = document.getElementById('detail-risk-badge-area');
+            var riskBadgeEl = document.getElementById('detail-risk-badge');
+            if (riskBadgeArea && riskBadgeEl) {
+                if (data.risk_flags) {
+                    riskBadgeEl.innerHTML = renderRiskBadge(data.risk_flags);
+                    riskBadgeArea.style.display = 'flex';
+                } else {
+                    riskBadgeArea.style.display = 'none';
+                }
+            }
             var viewBtn = document.getElementById('btn-view-original');
             if (data.file_md5) { viewBtn.dataset.md5 = data.file_md5; viewBtn.style.display = 'inline-flex'; }
             else { viewBtn.style.display = 'none'; }
@@ -942,14 +934,6 @@ const API_BASE = '/api';
             document.getElementById('stat-total-price').textContent = formatMoney(result.total_price);
             document.getElementById('stat-total-tax').textContent = formatMoney(result.total_tax);
             document.getElementById('stat-seller-cnt').textContent = result.seller_cnt || 0;
-            var topAmt = document.getElementById('stat-total-amt-top');
-            var topPrice = document.getElementById('stat-total-price-top');
-            var topTax = document.getElementById('stat-total-tax-top');
-            var topSeller = document.getElementById('stat-seller-cnt-top');
-            if (topAmt) topAmt.textContent = formatMoney(result.total_amt);
-            if (topPrice) topPrice.textContent = formatMoney(result.total_price);
-            if (topTax) topTax.textContent = formatMoney(result.total_tax);
-            if (topSeller) topSeller.textContent = result.seller_cnt || 0;
             renderSellerRanking(result.top_sellers || []);
             renderMonthlyAmountChart(result.monthly_summary || []);
             loadInputTaxSummary();
@@ -1183,10 +1167,6 @@ const API_BASE = '/api';
                 }
             });
             document.getElementById('invoices-body').addEventListener('click', function(e) {
-                var btn = e.target.closest('.btn-detail');
-                if (btn) { showInvoiceDetail(btn.dataset.invoice); }
-            });
-            document.getElementById('recent-invoices-body').addEventListener('click', function(e) {
                 var btn = e.target.closest('.btn-detail');
                 if (btn) { showInvoiceDetail(btn.dataset.invoice); }
             });

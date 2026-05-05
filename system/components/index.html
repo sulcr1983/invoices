@@ -218,31 +218,10 @@
                 </div>
             </div>
 
-            <!-- 最近发票 -->
-            <div class="glass-card p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-text-primary font-semibold text-sm"><i class="fa fa-file-text-o" style="color:var(--color-primary);margin-right:6px;"></i>最近发票记录</h3>
-                    <button onclick="switchPage('invoices')" class="text-primary text-xs font-medium hover:underline">查看全部 <i class="fa fa-arrow-right"></i></button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="data-table">
-                        <thead><tr><th>发票号码</th><th>销售方</th><th class="text-right">金额</th><th>开票日期</th><th class="text-center">操作</th></tr></thead>
-                        <tbody id="recent-invoices-body"></tbody>
-                    </table>
-                </div>
-            </div>
         </div>
 
         <!-- ===== 页面2：发票台账 ===== -->
         <div id="page-invoices" class="page-content">
-
-            <!-- 摘要看板 -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:var(--color-primary-bg);color:var(--color-primary);width:36px;height:36px;font-size:16px;"><i class="fa fa-calculator"></i></div><div><p class="stat-label">发票总额</p><p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt-top">¥0</p></div></div></div>
-                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:var(--color-success-bg);color:var(--color-success);width:36px;height:36px;font-size:16px;"><i class="fa fa-file-text-o"></i></div><div><p class="stat-label">不含税金额</p><p class="text-lg font-bold" style="color:var(--color-success)" id="stat-total-price-top">¥0</p></div></div></div>
-                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:var(--color-warning-bg);color:var(--color-warning);width:36px;height:36px;font-size:16px;"><i class="fa fa-percent"></i></div><div><p class="stat-label">税额合计</p><p class="text-lg font-bold" style="color:var(--color-warning)" id="stat-total-tax-top">¥0</p></div></div></div>
-                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:rgba(236,72,153,0.1);color:var(--color-accent);width:36px;height:36px;font-size:16px;"><i class="fa fa-building"></i></div><div><p class="stat-label">销售方数量</p><p class="text-lg font-bold" style="color:var(--color-accent)" id="stat-seller-cnt-top">0</p></div></div></div>
-            </div>
 
             <!-- 搜索区 -->
             <div class="glass-card overflow-hidden mb-5">
@@ -420,7 +399,7 @@
 
     <!-- 发票详情弹窗 -->
     <div class="modal-overlay" id="invoice-detail-modal">
-        <div class="modal-box modal-wide" style="max-width:740px;">
+        <div class="modal-box modal-wide" style="max-width:720px;">
             <div class="flex items-center justify-between px-5 py-3" style="background:var(--color-primary-bg);border-bottom:1px solid #e0e7ff;">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(99,102,241,0.1);"><i class="fa fa-file-text-o" style="color:var(--color-primary);font-size:14px;"></i></div>
@@ -432,88 +411,104 @@
                 </div>
             </div>
             <div class="p-5">
-                <div class="flex items-center justify-between mb-5 pb-3" style="border-bottom:2px solid var(--color-border-light);">
-                    <div><p class="text-text-muted text-xs mb-0.5">发票号码</p><p class="text-xl font-bold tracking-wider" id="detail-invoice-num" style="color:var(--color-primary);"></p></div>
-                    <div class="text-right"><p class="text-text-muted text-xs mb-0.5">发票类型</p><span class="badge badge-primary" id="detail-invoice-type"></span></div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;">
-                        <div class="flex items-center gap-2 mb-2.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-info" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">基本信息</span></div>
-                        <div class="space-y-2">
-                            <div class="flex justify-between"><span class="text-text-muted text-xs">发票代码</span><span class="text-sm font-medium text-text-primary" id="detail-invoice-code"></span></div>
-                            <div class="flex justify-between"><span class="text-text-muted text-xs">开票日期</span><span class="text-sm font-medium text-text-primary" id="detail-date"></span></div>
+                <!-- 头部：号码+金额 -->
+                <div class="flex items-start justify-between mb-5 pb-4" style="border-bottom:2px solid var(--color-border-light);">
+                    <div>
+                        <p class="text-text-muted text-xs mb-0.5">发票号码</p>
+                        <p class="text-xl font-bold tracking-wider" id="detail-invoice-num" style="color:var(--color-primary);"></p>
+                        <div class="flex items-center gap-3 mt-1.5">
+                            <span class="text-text-muted text-xs">发票代码 <span class="font-mono text-text-primary font-medium" id="detail-invoice-code"></span></span>
+                            <span class="text-text-muted text-xs">开票日期 <span class="text-text-primary font-medium" id="detail-date"></span></span>
                         </div>
                     </div>
-                    <div style="background:linear-gradient(135deg,var(--color-primary-bg),#e0e7ff);border-radius:var(--radius-md);padding:14px;text-align:center;">
-                        <div class="flex items-center justify-center gap-1.5 mb-1.5"><i class="fa fa-money" style="color:var(--color-primary);font-size:12px;"></i><span class="text-text-secondary font-semibold text-xs">价税合计</span></div>
-                        <p class="text-2xl font-bold" id="detail-total-amount" style="color:var(--color-primary);"></p>
-                        <div class="flex justify-center gap-4 mt-2 pt-2" style="border-top:1px solid rgba(99,102,241,0.1);">
-                            <div class="text-center"><p class="text-text-muted text-xs">不含税</p><p class="text-xs font-semibold text-text-primary" id="detail-price-without-tax"></p></div>
-                            <div class="text-center"><p class="text-text-muted text-xs">税率</p><p class="text-xs font-semibold text-text-primary" id="detail-tax-rate"></p></div>
-                            <div class="text-center"><p class="text-text-muted text-xs">税额</p><p class="text-xs font-semibold text-text-primary" id="detail-tax-amount"></p></div>
-                        </div>
-                    </div>
-                </div>
-                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
-                    <div class="flex items-center gap-2 mb-3"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-users" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">往来方信息</span></div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                        <div><p class="text-text-muted text-xs">销售方</p><p class="text-sm font-medium text-text-primary" id="detail-seller"></p></div>
-                        <div><p class="text-text-muted text-xs">销售方税号</p><p class="text-sm font-mono text-text-primary" id="detail-seller-tax-id"></p></div>
-                        <div><p class="text-text-muted text-xs">购买方</p><p class="text-sm font-medium text-text-primary" id="detail-buyer"></p></div>
-                        <div><p class="text-text-muted text-xs">购买方税号</p><p class="text-sm font-mono text-text-primary" id="detail-buyer-tax-id"></p></div>
-                    </div>
-                </div>
-                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
-                    <div class="flex items-center gap-2 mb-1.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-shopping-cart" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">项目/服务内容</span></div>
-                    <p class="text-sm text-text-secondary pl-7" id="detail-item"></p>
-                </div>
-                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
-                    <div class="flex items-center gap-2 mb-1.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-shield" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">校验码</span></div>
-                    <p class="text-sm font-mono text-text-secondary pl-7" id="detail-check-code"></p>
-                </div>
-                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
-                    <div class="flex items-center gap-2 mb-3"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-cog" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">管理与合规</span></div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                        <div>
-                            <p class="text-text-muted text-xs mb-1">验真状态</p>
-                            <div class="flex items-center gap-1.5">
-                                <span id="detail-verify-badge"></span>
-                                <button id="btn-verify-invoice" class="px-2 py-0.5 rounded text-xs font-medium" style="background:var(--color-primary-bg);color:var(--color-primary);font-size:11px;" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i></button>
+                    <div class="text-right flex-shrink-0">
+                        <p class="text-text-muted text-xs mb-1">发票类型</p>
+                        <span class="badge badge-primary mb-2" id="detail-invoice-type"></span>
+                        <div style="background:linear-gradient(135deg,var(--color-primary-bg),#e0e7ff);border-radius:var(--radius-md);padding:10px 16px;text-align:center;min-width:160px;">
+                            <p class="text-text-muted text-xs">价税合计</p>
+                            <p class="text-xl font-bold" id="detail-total-amount" style="color:var(--color-primary);"></p>
+                            <div class="flex justify-center gap-3 mt-1 pt-1" style="border-top:1px solid rgba(99,102,241,0.1);">
+                                <span class="text-text-muted text-xs">不含税 <span class="font-semibold text-text-primary" id="detail-price-without-tax"></span></span>
+                                <span class="text-text-muted text-xs">税率 <span class="font-semibold text-text-primary" id="detail-tax-rate"></span></span>
+                                <span class="text-text-muted text-xs">税额 <span class="font-semibold text-text-primary" id="detail-tax-amount"></span></span>
                             </div>
-                            <p id="detail-verify-message" class="text-xs mt-0.5" style="color:var(--color-text-muted);display:none;font-size:10px;"></p>
                         </div>
-                        <div>
-                            <p class="text-text-muted text-xs mb-1">认证状态</p>
-                            <span id="detail-certification-badge"></span>
+                    </div>
+                </div>
+
+                <!-- 合规状态条 -->
+                <div class="flex items-center gap-4 mb-4 p-3" style="background:var(--color-bg-subtle);border-radius:var(--radius-md);">
+                    <div class="flex items-center gap-2">
+                        <i class="fa fa-shield" style="color:var(--color-primary);font-size:12px;"></i>
+                        <span class="text-text-secondary text-xs font-semibold">验真</span>
+                        <span id="detail-verify-badge"></span>
+                        <button id="btn-verify-invoice" class="px-2 py-0.5 rounded text-xs font-medium" style="background:var(--color-primary-bg);color:var(--color-primary);font-size:11px;" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i></button>
+                        <p id="detail-verify-message" class="text-xs" style="color:var(--color-text-muted);display:none;font-size:10px;"></p>
+                    </div>
+                    <div style="width:1px;height:20px;background:var(--color-border);"></div>
+                    <div class="flex items-center gap-2">
+                        <i class="fa fa-check-circle-o" style="color:var(--color-primary);font-size:12px;"></i>
+                        <span class="text-text-secondary text-xs font-semibold">认证</span>
+                        <span id="detail-certification-badge"></span>
+                    </div>
+                    <div id="detail-risk-badge-area" class="flex items-center gap-2" style="display:none;">
+                        <div style="width:1px;height:20px;background:var(--color-border);"></div>
+                        <i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:12px;"></i>
+                        <span id="detail-risk-badge"></span>
+                    </div>
+                </div>
+
+                <!-- 查验结果详情 -->
+                <div id="detail-verify-result-area" style="display:none;margin-bottom:12px;padding:10px;background:#fff;border-radius:var(--radius-sm);border:1px solid var(--color-border-light);">
+                    <p class="text-xs font-semibold text-text-primary mb-1"><i class="fa fa-file-text-o" style="margin-right:4px;"></i>查验结果详情</p>
+                    <div id="detail-verify-result-content" class="text-xs text-text-secondary" style="max-height:150px;overflow-y:auto;"></div>
+                </div>
+
+                <!-- 往来方+项目内容 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:12px;">
+                        <div class="flex items-center gap-2 mb-2"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-users" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">往来方</span></div>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between"><span class="text-text-muted text-xs">销售方</span><span class="text-sm font-medium text-text-primary text-right" id="detail-seller"></span></div>
+                            <div class="flex justify-between"><span class="text-text-muted text-xs">销售方税号</span><span class="text-xs font-mono text-text-secondary" id="detail-seller-tax-id"></span></div>
+                            <div class="flex justify-between"><span class="text-text-muted text-xs">购买方</span><span class="text-sm font-medium text-text-primary text-right" id="detail-buyer"></span></div>
+                            <div class="flex justify-between"><span class="text-text-muted text-xs">购买方税号</span><span class="text-xs font-mono text-text-secondary" id="detail-buyer-tax-id"></span></div>
                         </div>
+                    </div>
+                    <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:12px;">
+                        <div class="flex items-center gap-2 mb-2"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-shopping-cart" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">项目内容</span></div>
+                        <p class="text-sm text-text-secondary" id="detail-item"></p>
+                    </div>
+                </div>
+
+                <!-- 费用归属 -->
+                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:12px;margin-bottom:3px;">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-tag" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">费用归属</span></div>
+                        <button id="btn-save-attribution" class="btn-primary btn-primary-sm" style="font-size:11px;padding:4px 14px;"><i class="fa fa-save"></i> 保存</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
                         <div>
                             <p class="text-text-muted text-xs mb-1">部门</p>
-                            <input type="text" id="detail-department" list="dept-options" class="input-field" placeholder="部门" style="font-size:12px;padding:5px 8px;">
+                            <input type="text" id="detail-department" list="dept-options" class="input-field" placeholder="选择或输入" style="font-size:12px;padding:5px 8px;">
                             <datalist id="dept-options"></datalist>
                         </div>
                         <div>
                             <p class="text-text-muted text-xs mb-1">项目</p>
-                            <input type="text" id="detail-project" list="proj-options" class="input-field" placeholder="项目" style="font-size:12px;padding:5px 8px;">
+                            <input type="text" id="detail-project" list="proj-options" class="input-field" placeholder="选择或输入" style="font-size:12px;padding:5px 8px;">
                             <datalist id="proj-options"></datalist>
                         </div>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div>
                             <p class="text-text-muted text-xs mb-1">费用类型</p>
-                            <input type="text" id="detail-expense-type" list="expense-options" class="input-field" placeholder="费用类型" style="font-size:12px;padding:5px 8px;">
+                            <input type="text" id="detail-expense-type" list="expense-options" class="input-field" placeholder="选择或输入" style="font-size:12px;padding:5px 8px;">
                             <datalist id="expense-options">
                                 <option value="差旅"><option value="办公"><option value="福利"><option value="采购"><option value="招待"><option value="交通"><option value="通讯"><option value="租赁"><option value="咨询"><option value="其他">
                             </datalist>
                         </div>
-                        <div class="col-span-3 flex items-end">
-                            <button id="btn-save-attribution" class="btn-primary btn-primary-sm" style="font-size:11px;padding:5px 14px;"><i class="fa fa-save"></i> 保存归属</button>
-                        </div>
-                    </div>
-                    <div id="detail-verify-result-area" style="display:none;margin-top:10px;padding:8px;background:#fff;border-radius:6px;border:1px solid var(--color-border-light);">
-                        <p class="text-xs font-semibold text-text-primary mb-1"><i class="fa fa-file-text-o" style="margin-right:4px;"></i>查验结果详情</p>
-                        <div id="detail-verify-result-content" class="text-xs text-text-secondary" style="max-height:150px;overflow-y:auto;"></div>
                     </div>
                 </div>
+
+                <!-- 备注 -->
                 <div class="mb-4">
                     <div class="flex items-center gap-2 mb-1.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-sticky-note" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">备注</span></div>
                     <textarea id="detail-remark" class="input-field" rows="2" placeholder="点击编辑备注..."></textarea>
