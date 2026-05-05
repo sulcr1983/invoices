@@ -7,6 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -53,6 +54,9 @@
                     </div>
                     <div class="nav-tab" data-page="invoices" onclick="switchPage('invoices')">
                         <i class="fa fa-list-alt"></i><span>发票台账</span>
+                    </div>
+                    <div class="nav-tab" data-page="stats" onclick="switchPage('stats')">
+                        <i class="fa fa-bar-chart"></i><span>统计分析</span>
                     </div>
 
                 </nav>
@@ -222,7 +226,7 @@
                 </div>
                 <div class="overflow-x-auto">
                     <table class="data-table">
-                        <thead><tr><th>发票号码</th><th>销售方</th><th>项目内容</th><th class="text-right">金额</th><th>开票日期</th><th class="text-center">操作</th></tr></thead>
+                        <thead><tr><th>发票号码</th><th>销售方</th><th class="text-right">金额</th><th>开票日期</th><th class="text-center">操作</th></tr></thead>
                         <tbody id="recent-invoices-body"></tbody>
                     </table>
                 </div>
@@ -300,66 +304,9 @@
                         </div>
                     </div>
                     <div class="mt-3 flex justify-end gap-2">
-                        <button id="btn-toggle-stats" class="btn-ghost" style="font-size:12px;color:var(--color-primary);"><i class="fa fa-bar-chart"></i> 统计</button>
                         <button id="btn-reset" class="btn-ghost"><i class="fa fa-undo"></i> 重置</button>
                         <button id="btn-search" class="btn-primary btn-primary-sm"><i class="fa fa-search"></i> 查询</button>
                     </div>
-                </div>
-            </div>
-
-            <!-- 统计概览区 -->
-            <div id="stats-panel" class="mb-5" style="display:none;">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                    <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">发票总额</p><p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt">¥0</p></div>
-                    <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">不含税金额</p><p class="text-lg font-bold" style="color:var(--color-success)" id="stat-total-price">¥0</p></div>
-                    <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">税额合计</p><p class="text-lg font-bold" style="color:var(--color-warning)" id="stat-total-tax">¥0</p></div>
-                    <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">销售方数量</p><p class="text-lg font-bold" style="color:var(--color-accent)" id="stat-seller-cnt">0</p></div>
-                </div>
-                <div class="grid md:grid-cols-2 gap-3">
-                    <div class="glass-card p-4">
-                        <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-building" style="color:var(--color-primary);margin-right:5px;"></i>销售方金额 TOP10</h4>
-                        <div id="seller-ranking"></div>
-                    </div>
-                    <div class="glass-card p-4">
-                        <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-calendar" style="color:var(--color-primary);margin-right:5px;"></i>月度金额趋势</h4>
-                        <div id="monthly-amount-chart"></div>
-                    </div>
-                </div>
-                <div class="glass-card p-4 mt-3">
-                    <div class="flex items-center justify-between mb-3">
-                        <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-calculator" style="color:var(--color-primary);margin-right:5px;"></i>进项税额汇总（本月专票）</h4>
-                        <span class="text-xs text-text-muted" id="input-tax-period"></span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div style="background:var(--color-success-bg);border-radius:var(--radius-md);padding:12px;">
-                            <p class="text-text-muted text-xs">已认证税额</p>
-                            <p class="text-lg font-bold" style="color:var(--color-success);" id="input-tax-certified">¥0.00</p>
-                            <p class="text-xs text-text-muted" id="input-tax-certified-cnt">0 张</p>
-                        </div>
-                        <div style="background:var(--color-warning-bg);border-radius:var(--radius-md);padding:12px;">
-                            <p class="text-text-muted text-xs">待认证税额</p>
-                            <p class="text-lg font-bold" style="color:var(--color-warning);" id="input-tax-unverified">¥0.00</p>
-                            <p class="text-xs text-text-muted" id="input-tax-unverified-cnt">0 张</p>
-                        </div>
-                    </div>
-                    <div id="input-tax-detail-table"></div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                    <div class="glass-card p-4">
-                        <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-pie-chart" style="color:var(--color-primary);margin-right:5px;"></i>部门费用分布</h4>
-                        <div id="dept-distribution-chart" style="height:220px;"></div>
-                    </div>
-                    <div class="glass-card p-4">
-                        <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-bar-chart" style="color:var(--color-primary);margin-right:5px;"></i>费用类型分布</h4>
-                        <div id="expense-type-chart" style="height:220px;"></div>
-                    </div>
-                </div>
-                <div class="glass-card p-4 mt-3" id="risk-alert-section" style="display:none;">
-                    <div class="flex items-center justify-between mb-3">
-                        <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-exclamation-triangle" style="color:#ef4444;margin-right:5px;"></i>风险预警</h4>
-                        <span class="text-xs font-bold" style="color:#ef4444;" id="risk-alert-count"></span>
-                    </div>
-                    <div id="risk-alert-list"></div>
                 </div>
             </div>
 
@@ -413,7 +360,61 @@
             </div>
         </div>
 
-
+        <!-- ===== 页面3：统计分析 ===== -->
+        <div id="page-stats" class="page-content">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">发票总额</p><p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt">¥0</p></div>
+                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">不含税金额</p><p class="text-lg font-bold" style="color:var(--color-success)" id="stat-total-price">¥0</p></div>
+                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">税额合计</p><p class="text-lg font-bold" style="color:var(--color-warning)" id="stat-total-tax">¥0</p></div>
+                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">销售方数量</p><p class="text-lg font-bold" style="color:var(--color-accent)" id="stat-seller-cnt">0</p></div>
+            </div>
+            <div class="grid md:grid-cols-2 gap-3 mb-3">
+                <div class="glass-card p-4">
+                    <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-building" style="color:var(--color-primary);margin-right:5px;"></i>销售方金额 TOP10</h4>
+                    <div id="seller-ranking"></div>
+                </div>
+                <div class="glass-card p-4">
+                    <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-calendar" style="color:var(--color-primary);margin-right:5px;"></i>月度金额趋势</h4>
+                    <div id="monthly-amount-chart"></div>
+                </div>
+            </div>
+            <div class="glass-card p-4 mb-3">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-calculator" style="color:var(--color-primary);margin-right:5px;"></i>进项税额汇总（本月专票）</h4>
+                    <span class="text-xs text-text-muted" id="input-tax-period"></span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div style="background:var(--color-success-bg);border-radius:var(--radius-md);padding:12px;">
+                        <p class="text-text-muted text-xs">已认证税额</p>
+                        <p class="text-lg font-bold" style="color:var(--color-success);" id="input-tax-certified">¥0.00</p>
+                        <p class="text-xs text-text-muted" id="input-tax-certified-cnt">0 张</p>
+                    </div>
+                    <div style="background:var(--color-warning-bg);border-radius:var(--radius-md);padding:12px;">
+                        <p class="text-text-muted text-xs">待认证税额</p>
+                        <p class="text-lg font-bold" style="color:var(--color-warning);" id="input-tax-unverified">¥0.00</p>
+                        <p class="text-xs text-text-muted" id="input-tax-unverified-cnt">0 张</p>
+                    </div>
+                </div>
+                <div id="input-tax-detail-table"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div class="glass-card p-4">
+                    <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-pie-chart" style="color:var(--color-primary);margin-right:5px;"></i>部门费用分布</h4>
+                    <div id="dept-distribution-chart" style="height:220px;"></div>
+                </div>
+                <div class="glass-card p-4">
+                    <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-bar-chart" style="color:var(--color-primary);margin-right:5px;"></i>费用类型分布</h4>
+                    <div id="expense-type-chart" style="height:220px;"></div>
+                </div>
+            </div>
+            <div class="glass-card p-4" id="risk-alert-section" style="display:none;">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-exclamation-triangle" style="color:#ef4444;margin-right:5px;"></i>风险预警</h4>
+                    <span class="text-xs font-bold" style="color:#ef4444;" id="risk-alert-count"></span>
+                </div>
+                <div id="risk-alert-list"></div>
+            </div>
+        </div>
 
     </main>
 

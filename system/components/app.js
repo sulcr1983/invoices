@@ -98,6 +98,7 @@ const API_BASE = '/api';
             });
             if (pageId === 'dashboard') { loadDashboard(); }
             else if (pageId === 'invoices') { loadSellers(); loadInvoices(1); loadDupBadge(); }
+            else if (pageId === 'stats') { loadStatsSummary(); }
         }
 
         function toggleLogPanel() {
@@ -166,9 +167,9 @@ const API_BASE = '/api';
             var statEls = ['stat-pending', 'stat-archived', 'stat-month-cnt', 'hero-pending-count'];
             statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.innerHTML = '<span class="skeleton" style="display:inline-block;width:32px;height:18px;"></span>'; });
             var dashTbody = document.getElementById('recent-invoices-body');
-            dashTbody.innerHTML = '<tr><td colspan="6" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
+            dashTbody.innerHTML = '<tr><td colspan="5" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             const data = await apiRequest('/dashboard');
-            if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); dashTbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-text-muted">加载失败</td></tr>'; return; }
+            if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); dashTbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-text-muted">加载失败</td></tr>'; return; }
             document.getElementById('stat-pending').textContent = data.directory_status.pending || 0;
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
@@ -180,14 +181,13 @@ const API_BASE = '/api';
             const tbody = document.getElementById('recent-invoices-body');
             tbody.innerHTML = '';
             if (!data.recent_invoices || data.recent_invoices.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-text-muted">暂无发票记录</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-text-muted">暂无发票记录</td></tr>';
                 return;
             }
-            data.recent_invoices.forEach(function(inv) {
+            data.recent_invoices.slice(0, 5).forEach(function(inv) {
                 var tr = document.createElement('tr');
                 tr.innerHTML = '<td class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + '</td>' +
                     '<td class="font-medium text-text-primary">' + escapeHtml(inv.seller) + '</td>' +
-                    '<td class="text-text-secondary">' + escapeHtml(inv.item || '-') + '</td>' +
                     '<td class="text-right font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</td>' +
                     '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
                     '<td class="text-center"><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-xs hover:underline font-medium btn-detail" style="color:#6366f1">详情</button></td>';
@@ -387,11 +387,11 @@ const API_BASE = '/api';
             document.getElementById('verify-confirm-invoice-num').textContent = invoiceNum;
             document.getElementById('verify-confirm-cost').textContent = '¥' + verifyConfig.cost.toFixed(2) + '/次';
             document.getElementById('verify-no-remind').checked = false;
-            document.getElementById('verify-confirm-modal').classList.add('active');
+            document.getElementById('verify-confirm-modal').classList.add('show');
         }
 
         function closeVerifyConfirm() {
-            document.getElementById('verify-confirm-modal').classList.remove('active');
+            document.getElementById('verify-confirm-modal').classList.remove('show');
             pendingVerifyInvoiceNum = null;
         }
 
@@ -450,8 +450,8 @@ const API_BASE = '/api';
                         showToast(result.verify_message || '查验完成', result.verify_status === 'success' ? 'success' : 'error');
                     }
                     loadInvoices(invoiceListPage);
-                    var detailModal = document.getElementById('detail-modal');
-                    if (detailModal && detailModal.classList.contains('active')) {
+                    var detailModal = document.getElementById('invoice-detail-modal');
+                    if (detailModal && detailModal.classList.contains('show')) {
                         showInvoiceDetail(invoiceNum);
                     }
                 }
@@ -665,18 +665,11 @@ const API_BASE = '/api';
         async function doStartProcessing() {
             document.getElementById('confirm-modal').classList.remove('show');
 
-            switchPage('tasks');
-
-            var btnTop = document.getElementById('btn-start-process-top');
             var heroBtn = document.getElementById('hero-start-process');
             var progressEl = document.getElementById('process-progress');
-            var progressLabel = document.getElementById('process-progress-label');
-            btnTop.disabled = true; heroBtn.disabled = true;
-            btnTop.innerHTML = '<i class="fa fa-spinner fa-spin-custom"></i> 处理中...';
-            heroBtn.innerHTML = '<i class="fa fa-spinner fa-spin-custom"></i> 处理中...';
+            heroBtn.disabled = true;
+            heroBtn.innerHTML = '<i class="fa fa-spinner fa-spin-custom"></i> <span id="hero-btn-text">处理中...</span>';
             progressEl.classList.remove('hidden');
-            if (progressLabel) progressLabel.classList.remove('hidden');
-            document.getElementById('task-session-label').textContent = '当前会话 · 处理中...';
             var logsContainer = document.getElementById('logs-container');
             logsContainer.innerHTML = '';
             addLogEntry('系统就绪，准备处理发票...', 'info');
@@ -685,12 +678,9 @@ const API_BASE = '/api';
             var startData = await apiRequest('/tasks/process', 'POST');
             if (!startData) {
                 showSuccessModal('处理失败', '无法启动处理任务', null);
-                document.getElementById('task-session-label').textContent = '当前会话 · 处理失败';
-                btnTop.disabled = false; heroBtn.disabled = false;
-                btnTop.innerHTML = '<i class="fa fa-play-circle"></i> 开始处理';
+                heroBtn.disabled = false;
                 heroBtn.innerHTML = '<i class="fa fa-play-circle"></i> <span id="hero-btn-text">开始处理发票</span>';
                 progressEl.classList.add('hidden');
-                if (progressLabel) progressLabel.classList.add('hidden');
                 return;
             }
 
@@ -703,20 +693,13 @@ const API_BASE = '/api';
                     var error = statusData.error;
                     if (error) {
                         showSuccessModal('处理失败', '请检查系统日志或文件状态', null);
-                        document.getElementById('task-session-label').textContent = '当前会话 · 处理失败';
                     } else {
                         showSuccessModal('处理完成', '所有待识别发票已处理完毕', stats);
-                        document.getElementById('task-session-label').textContent = '当前会话 · 已完成';
-                        document.getElementById('task-stat-success').textContent = stats.success || 0;
-                        document.getElementById('task-stat-duplicate').textContent = stats.duplicate || 0;
-                        document.getElementById('task-stat-failed').textContent = stats.failed || 0;
                         loadDashboard();
                     }
-                    btnTop.disabled = false; heroBtn.disabled = false;
-                    btnTop.innerHTML = '<i class="fa fa-play-circle"></i> 开始处理';
+                    heroBtn.disabled = false;
                     heroBtn.innerHTML = '<i class="fa fa-play-circle"></i> <span id="hero-btn-text">开始处理发票</span>';
                     progressEl.classList.add('hidden');
-                    if (progressLabel) progressLabel.classList.add('hidden');
                 }
             }, 1500);
         }
@@ -944,21 +927,6 @@ const API_BASE = '/api';
                 html += '</tr>';
             });
             tbody.innerHTML = html;
-        }
-
-        var statsVisible = false;
-        function toggleStats() {
-            statsVisible = !statsVisible;
-            var panel = document.getElementById('stats-panel');
-            var btn = document.getElementById('btn-toggle-stats');
-            if (statsVisible) {
-                panel.style.display = '';
-                btn.innerHTML = '<i class="fa fa-bar-chart"></i> 收起统计';
-                loadStatsSummary();
-            } else {
-                panel.style.display = 'none';
-                btn.innerHTML = '<i class="fa fa-bar-chart"></i> 统计';
-            }
         }
 
         async function loadStatsSummary() {
@@ -1197,8 +1165,6 @@ const API_BASE = '/api';
                 loadInvoices(1);
             });
             document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
-            document.getElementById('btn-toggle-stats').addEventListener('click', toggleStats);
-            document.getElementById('btn-start-process-top').addEventListener('click', startProcessing);
             document.getElementById('hero-start-process').addEventListener('click', startProcessing);
             document.getElementById('btn-confirm-process').addEventListener('click', doStartProcessing);
             document.getElementById('btn-clear-logs').addEventListener('click', clearLogs);
