@@ -393,9 +393,9 @@ const API_BASE = '/api';
         }
 
         var verifyStatusConfig = {
-            'unverified': {label: '待查验', bg: '#f1f5f9', color: '#94a3b8'},
-            'success': {label: '查验通过', bg: '#ecfdf5', color: '#10b981'},
-            'failed': {label: '查验失败', bg: '#fef2f2', color: '#ef4444'},
+            'unverified': {label: '待验真', bg: '#f1f5f9', color: '#94a3b8'},
+            'success': {label: '已验真', bg: '#ecfdf5', color: '#10b981'},
+            'failed': {label: '验真失败', bg: '#fef2f2', color: '#ef4444'},
             'voided': {label: '已作废', bg: '#fef2f2', color: '#dc2626'},
             'red': {label: '红冲发票', bg: '#fff7ed', color: '#ea580c'}
         };
@@ -594,7 +594,6 @@ const API_BASE = '/api';
                         '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
                         '<td class="text-right font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</td>' +
                         '<td>' + renderVerifyBadge(inv.verify_status, inv.invoice_num) + '</td>' +
-                        '<td>' + renderCertBadge(inv.certification_status) + '</td>' +
                         '<td>' + (attributionTags || '<span class="text-text-muted text-xs">-</span>') + '</td>' +
                         '<td class="text-center"><div class="inline-flex items-center gap-1"><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button>' +
                         (inv.verify_status === 'unverified' && verifyConfig.enabled ? '<button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="btn-quick-verify" style="display:none;font-size:11px;color:#ef4444;background:none;border:none;cursor:pointer;padding:2px 4px;" title="快速验真"><i class="fa fa-search"></i></button>' : '') +
@@ -719,7 +718,7 @@ const API_BASE = '/api';
                 }
             }
             var certBadge = document.getElementById('detail-certification-badge');
-            if (certBadge) certBadge.innerHTML = renderCertBadge(data.deduction_status || 'unverified');
+            if (certBadge) certBadge.style.display = 'none';
             var riskBadgeArea = document.getElementById('detail-risk-badge-area');
             var riskBadgeEl = document.getElementById('detail-risk-badge');
             if (riskBadgeArea && riskBadgeEl) {
@@ -738,9 +737,9 @@ const API_BASE = '/api';
             var ocrContainer = document.getElementById('detail-ocr-result');
             if (imgContainer) {
                 if (data.file_md5) {
-                    imgContainer.innerHTML = '<img src="/api/invoices/' + encodeURIComponent(invoiceNum) + '/original" style="width:100%;border-radius:6px;cursor:pointer;" onclick="window.open(this.src,\'_blank\')" />';
+                    imgContainer.innerHTML = '<img src="/api/invoices/' + encodeURIComponent(invoiceNum) + '/original" style="width:100%;border-radius:6px;cursor:pointer;display:none;" onclick="window.open(this.src,\'_blank\')" onload="this.style.display=\'block\';this.parentElement.querySelector(\'.img-loading\').style.display=\'none\';" onerror="this.style.display=\'none\';this.parentElement.querySelector(\'.img-loading\').style.display=\'none\';this.parentElement.querySelector(\'.img-error\').style.display=\'flex\';" /><div class="img-loading" style="display:flex;align-items:center;justify-content:center;gap:4px;color:var(--color-text-muted);font-size:11px;"><i class="fa fa-spinner fa-spin-custom"></i> 加载中...</div><div class="img-error" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--color-text-muted);font-size:11px;"><i class="fa fa-image" style="font-size:24px;opacity:0.3;"></i>原图未找到</div>';
                 } else {
-                    imgContainer.innerHTML = '<span class="text-text-muted text-xs">暂无原图</span>';
+                    imgContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--color-text-muted);font-size:11px;"><i class="fa fa-image" style="font-size:24px;opacity:0.3;"></i>暂无原图</div>';
                 }
             }
             if (ocrContainer) {
@@ -767,6 +766,37 @@ const API_BASE = '/api';
             }
 
             document.getElementById('invoice-detail-modal').classList.add('show');
+            loadDatalistOptions();
+        }
+
+        async function loadDatalistOptions() {
+            try {
+                var sellers = await apiRequest('/sellers');
+                if (!sellers) return;
+                var deptEl = document.getElementById('dept-options');
+                var projEl = document.getElementById('proj-options');
+                var deptSet = new Set();
+                var projSet = new Set();
+                var deptRecords = await apiRequest('/invoices?limit=200');
+                if (deptRecords && deptRecords.invoices) {
+                    deptRecords.invoices.forEach(function(inv) {
+                        if (inv.department) deptSet.add(inv.department);
+                        if (inv.project) projSet.add(inv.project);
+                    });
+                }
+                if (deptEl) {
+                    deptEl.innerHTML = '';
+                    deptSet.forEach(function(d) {
+                        deptEl.innerHTML += '<option value="' + escapeHtml(d) + '">';
+                    });
+                }
+                if (projEl) {
+                    projEl.innerHTML = '';
+                    projSet.forEach(function(p) {
+                        projEl.innerHTML += '<option value="' + escapeHtml(p) + '">';
+                    });
+                }
+            } catch(e) {}
         }
 
         function closeDetailModal() { document.getElementById('invoice-detail-modal').classList.remove('show'); }
@@ -1214,7 +1244,7 @@ const API_BASE = '/api';
             btn.innerHTML = '<i class="fa fa-spinner fa-spin-custom"></i> 保存中...';
             btn.disabled = true;
             try {
-                var result = await apiRequest('/invoices/' + invoiceNum + '/attribution', 'PUT', {
+                var result = await apiRequest('/invoices/' + encodeURIComponent(invoiceNum) + '/attribution', 'PUT', {
                     department: dept, project: proj, expense_type: exp
                 });
                 if (result) {

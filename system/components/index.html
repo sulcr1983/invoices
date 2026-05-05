@@ -343,7 +343,7 @@
                     <div class="overflow-x-auto">
                         <table class="data-table" style="margin:0;">
                             <thead><tr>
-                                <th><input type="checkbox" id="select-all-invoices" onclick="toggleSelectAll(this)" style="margin-right:4px;accent-color:var(--color-primary);"></th><th>发票号码</th><th>销售方</th><th>开票日期</th><th class="text-right">价税合计</th><th>验真</th><th>认证</th><th>费用归属</th><th class="text-center">操作</th>
+                                <th><input type="checkbox" id="select-all-invoices" onclick="toggleSelectAll(this)" style="margin-right:4px;accent-color:var(--color-primary);"></th><th>发票号码</th><th>销售方</th><th>开票日期</th><th class="text-right">价税合计</th><th>验真状态</th><th>费用归属</th><th class="text-center">操作</th>
                             </tr></thead>
                             <tbody id="invoices-body"></tbody>
                         </table>
@@ -462,11 +462,11 @@
                         <p class="detail-label">发票号码</p>
                         <p id="detail-invoice-num" class="detail-mono-lg"></p>
                         <div class="detail-meta-row">
-                            <span class="detail-meta-item">代码 <span id="detail-invoice-code" class="detail-mono-sm"></span></span>
-                            <span class="detail-meta-divider"></span>
                             <span class="detail-meta-item">日期 <span id="detail-date" class="detail-text-sm"></span></span>
                             <span class="detail-meta-divider"></span>
                             <span id="detail-invoice-type" class="badge badge-primary" style="font-size:10px;"></span>
+                            <span class="detail-meta-divider"></span>
+                            <span class="detail-meta-item" style="position:relative;" title="发票代码"><span id="detail-invoice-code" class="detail-mono-sm" style="opacity:0.5;font-size:10px;"></span></span>
                         </div>
                     </div>
                     <div class="detail-amount-card">
@@ -487,11 +487,6 @@
                         <span id="detail-verify-badge"></span>
                         <button id="btn-verify-invoice" class="detail-verify-btn" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i> 验真</button>
                         <p id="detail-verify-message" class="detail-status-hint" style="display:none;"></p>
-                    </div>
-                    <div class="detail-status-divider"></div>
-                    <div class="detail-status-item">
-                        <span class="detail-status-label">认证</span>
-                        <span id="detail-certification-badge"></span>
                     </div>
                     <div id="detail-risk-badge-area" class="detail-status-item" style="display:none;">
                         <div class="detail-status-divider"></div>
