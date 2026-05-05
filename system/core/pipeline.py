@@ -12,6 +12,7 @@ from ..services import (
     get_archive_path, process_invoice_file, push_invoice, compensate_pending
 )
 from ..extractor import calculate_file_md5
+from .verify import verify_invoice_mock
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +216,17 @@ def run_pipeline():
 
             if status == 'success':
                 record = result
+
+                verify_result = verify_invoice_mock(record)
+                record['verify_status'] = verify_result.get('status', 'unverified')
+                if verify_result.get('status') != 'unverified':
+                    from .verify import format_verify_result
+                    db_manager.update_verify_status(
+                        record.get('invoice_num', ''),
+                        verify_result.get('status'),
+                        format_verify_result(verify_result)
+                    )
+
                 push_ok, push_error = push_invoice(record, db_manager)
 
                 if push_ok:

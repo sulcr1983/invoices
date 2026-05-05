@@ -261,6 +261,25 @@
                         <div id="monthly-amount-chart"></div>
                     </div>
                 </div>
+                <div class="glass-card p-4 mt-3">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-calculator" style="color:var(--color-primary);margin-right:5px;"></i>进项税额汇总（本月专票）</h4>
+                        <span class="text-xs text-text-muted" id="input-tax-period"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div style="background:var(--color-success-bg);border-radius:var(--radius-md);padding:12px;">
+                            <p class="text-text-muted text-xs">已认证税额</p>
+                            <p class="text-lg font-bold" style="color:var(--color-success);" id="input-tax-certified">¥0.00</p>
+                            <p class="text-xs text-text-muted" id="input-tax-certified-cnt">0 张</p>
+                        </div>
+                        <div style="background:var(--color-warning-bg);border-radius:var(--radius-md);padding:12px;">
+                            <p class="text-text-muted text-xs">待认证税额</p>
+                            <p class="text-lg font-bold" style="color:var(--color-warning);" id="input-tax-unverified">¥0.00</p>
+                            <p class="text-xs text-text-muted" id="input-tax-unverified-cnt">0 张</p>
+                        </div>
+                    </div>
+                    <div id="input-tax-detail-table"></div>
+                </div>
             </div>
 
             <!-- 列表区 -->
@@ -275,14 +294,17 @@
                             <button id="tab-dup-invoices" class="invoice-tab" onclick="switchInvoiceTab('duplicates')">重复记录 <span id="dup-count-badge" class="dup-badge" style="display:none;">0</span></button>
                         </div>
                     </div>
-                    <button id="btn-export-csv" class="btn-ghost" style="font-size:12px;"><i class="fa fa-download"></i> 导出CSV</button>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-batch-certify" class="btn-ghost" style="font-size:12px;display:none;" onclick="batchCertify()"><i class="fa fa-check-circle-o"></i> 批量标记已认证</button>
+                        <button id="btn-export-csv" class="btn-ghost" style="font-size:12px;"><i class="fa fa-download"></i> 导出CSV</button>
+                    </div>
                 </div>
                 <div id="invoice-tab-all">
                     <span id="pagination-info" style="display:none;"></span>
                     <div class="overflow-x-auto">
                         <table class="data-table" style="margin:0;">
                             <thead><tr>
-                                <th>发票号码</th><th>销售方</th><th>开票日期</th><th>购买方</th><th class="text-right">价税合计</th><th>备注</th><th class="text-center">操作</th>
+                                <th><input type="checkbox" id="select-all-invoices" onclick="toggleSelectAll(this)" style="margin-right:4px;accent-color:var(--color-primary);"></th><th>发票号码</th><th>销售方</th><th>开票日期</th><th>购买方</th><th class="text-right">价税合计</th><th>验真状态</th><th>认证状态</th><th>备注</th><th class="text-center">操作</th>
                             </tr></thead>
                             <tbody id="invoices-body"></tbody>
                         </table>
@@ -435,6 +457,22 @@
                 <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
                     <div class="flex items-center gap-2 mb-1.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-shield" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">校验码</span></div>
                     <p class="text-sm font-mono text-text-secondary pl-7" id="detail-check-code"></p>
+                </div>
+                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
+                    <div class="flex items-center gap-2 mb-3"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-shield" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">合规状态</span></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-text-muted text-xs mb-1">验真状态</p>
+                            <div class="flex items-center gap-2">
+                                <span id="detail-verify-badge"></span>
+                                <button id="btn-verify-invoice" class="px-3 py-1 rounded-lg text-xs font-medium cursor-not-allowed opacity-50" style="background:#e2e8f0;color:#94a3b8;" disabled title="验真接口待配置"><i class="fa fa-search"></i> 立即查验</button>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-text-muted text-xs mb-1">认证状态</p>
+                            <span id="detail-certification-badge"></span>
+                        </div>
+                    </div>
                 </div>
                 <div class="mb-4">
                     <div class="flex items-center gap-2 mb-1.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-sticky-note" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">备注</span></div>

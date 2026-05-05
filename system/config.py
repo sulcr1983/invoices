@@ -56,7 +56,12 @@ INVOICE_FIELD_NAMES = {
     "batch_id": "批次ID",
     "push_status": "推送状态",
     "retry_count": "重试次数",
-    "last_error": "最后错误"
+    "last_error": "最后错误",
+    "verify_status": "验真状态",
+    "verify_time": "查验时间",
+    "verify_result": "查验结果",
+    "deduction_status": "认证状态",
+    "certification_date": "认证日期"
 }
 
 INVOICE_TEMPLATE = {
@@ -78,7 +83,12 @@ INVOICE_TEMPLATE = {
     "file_md5": "",
     "sync_status": 0,
     "process_time": "",
-    "batch_id": ""
+    "batch_id": "",
+    "verify_status": "unverified",
+    "verify_time": "",
+    "verify_result": "",
+    "deduction_status": "unverified",
+    "certification_date": ""
 }
 
 RETRY_MAX_ATTEMPTS = int(os.environ.get("RETRY_MAX_ATTEMPTS", "3"))

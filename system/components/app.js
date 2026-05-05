@@ -240,10 +240,79 @@ const API_BASE = '/api';
             data.forEach(function(s) { var opt = document.createElement('option'); opt.value = s; opt.textContent = s; sel.appendChild(opt); });
         }
 
+        var selectedInvoices = new Set();
+
+        function toggleSelectAll(checkbox) {
+            var checkboxes = document.querySelectorAll('.invoice-checkbox');
+            selectedInvoices.clear();
+            checkboxes.forEach(function(cb) {
+                cb.checked = checkbox.checked;
+                if (checkbox.checked) {
+                    selectedInvoices.add(cb.dataset.invoice);
+                }
+            });
+            updateBatchCertifyButton();
+        }
+
+        function updateBatchCertifyButton() {
+            var btn = document.getElementById('btn-batch-certify');
+            if (!btn) return;
+            if (selectedInvoices.size > 0) {
+                btn.style.display = '';
+                btn.innerHTML = '<i class="fa fa-check-circle-o"></i> 批量标记已认证 (' + selectedInvoices.size + ')';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        function toggleInvoiceSelect(checkbox) {
+            if (checkbox.checked) {
+                selectedInvoices.add(checkbox.dataset.invoice);
+            } else {
+                selectedInvoices.delete(checkbox.dataset.invoice);
+            }
+            updateBatchCertifyButton();
+        }
+
+        async function batchCertify() {
+            if (selectedInvoices.size === 0) return;
+            var nums = Array.from(selectedInvoices);
+            var result = await apiRequest('/invoices/batch-certify', 'POST', {invoice_nums: nums});
+            if (result) {
+                showToast(result.message || '认证成功', 'success');
+                selectedInvoices.clear();
+                loadInvoices(invoiceListPage);
+                updateBatchCertifyButton();
+            }
+        }
+
+        var verifyStatusConfig = {
+            'unverified': {label: '待查验', bg: '#f1f5f9', color: '#94a3b8'},
+            'success': {label: '查验通过', bg: '#ecfdf5', color: '#10b981'},
+            'failed': {label: '查验失败', bg: '#fef2f2', color: '#ef4444'},
+            'voided': {label: '已作废', bg: '#fef2f2', color: '#dc2626'},
+            'red': {label: '红冲发票', bg: '#fff7ed', color: '#ea580c'}
+        };
+
+        var certStatusConfig = {
+            'unverified': {label: '未认证', bg: '#f1f5f9', color: '#94a3b8'},
+            'certified': {label: '已认证', bg: '#ecfdf5', color: '#10b981'}
+        };
+
+        function renderVerifyBadge(status) {
+            var cfg = verifyStatusConfig[status] || verifyStatusConfig['unverified'];
+            return '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:' + cfg.bg + ';color:' + cfg.color + ';">' + cfg.label + '</span>';
+        }
+
+        function renderCertBadge(status) {
+            var cfg = certStatusConfig[status] || certStatusConfig['unverified'];
+            return '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:' + cfg.bg + ';color:' + cfg.color + ';">' + cfg.label + '</span>';
+        }
+
         async function loadInvoices(page) {
             invoiceListPage = page;
             var invTbody = document.getElementById('invoices-body');
-            invTbody.innerHTML = '<tr><td colspan="7" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
+            invTbody.innerHTML = '<tr><td colspan="10" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             var keyword = document.getElementById('search-keyword').value;
             var dateFrom = document.getElementById('search-date-from').value;
             var dateTo = document.getElementById('search-date-to').value;
@@ -268,7 +337,7 @@ const API_BASE = '/api';
             var tbody = document.getElementById('invoices-body');
             tbody.innerHTML = '';
             if (data.invoices.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-text-muted">暂无匹配的发票记录</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-10 text-text-muted">暂无匹配的发票记录</td></tr>';
             } else {
                 data.invoices.forEach(function(inv) {
                     var tr = document.createElement('tr');
@@ -278,11 +347,15 @@ const API_BASE = '/api';
                     } else if (inv.deduction_status === 'expiring') {
                         deductionTag = ' <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fffbeb;color:#d97706;">剩' + inv.days_remaining + '天</span>';
                     }
-                    tr.innerHTML = '<td class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + deductionTag + '</td>' +
+                    var isChecked = selectedInvoices.has(inv.invoice_num) ? 'checked' : '';
+                    tr.innerHTML = '<td><input type="checkbox" class="invoice-checkbox" data-invoice="' + escapeHtml(inv.invoice_num) + '" ' + isChecked + ' onchange="toggleInvoiceSelect(this)" style="accent-color:var(--color-primary);"></td>' +
+                        '<td class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + deductionTag + '</td>' +
                         '<td class="font-medium text-text-primary">' + escapeHtml(inv.seller) + '</td>' +
                         '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
                         '<td class="text-text-primary">' + escapeHtml(inv.buyer) + '</td>' +
                         '<td class="text-right font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</td>' +
+                        '<td>' + renderVerifyBadge(inv.verify_status) + '</td>' +
+                        '<td>' + renderCertBadge(inv.certification_status) + '</td>' +
                         '<td class="text-text-muted max-w-[120px] truncate">' + escapeHtml(inv.remark) + '</td>' +
                         '<td><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button></td>';
                     tbody.appendChild(tr);
@@ -339,6 +412,10 @@ const API_BASE = '/api';
             document.getElementById('detail-check-code').textContent = safeText(data.check_code);
             document.getElementById('detail-remark').value = safeText(data.remark);
             document.getElementById('btn-save-remark').dataset.invoiceNum = data.invoice_num;
+            var verifyBadge = document.getElementById('detail-verify-badge');
+            if (verifyBadge) verifyBadge.innerHTML = renderVerifyBadge(data.verify_status || 'unverified');
+            var certBadge = document.getElementById('detail-certification-badge');
+            if (certBadge) certBadge.innerHTML = renderCertBadge(data.deduction_status || 'unverified');
             var viewBtn = document.getElementById('btn-view-original');
             if (data.file_md5) { viewBtn.dataset.md5 = data.file_md5; viewBtn.style.display = 'inline-flex'; }
             else { viewBtn.style.display = 'none'; }
@@ -674,6 +751,44 @@ const API_BASE = '/api';
             document.getElementById('stat-seller-cnt').textContent = result.seller_cnt || 0;
             renderSellerRanking(result.top_sellers || []);
             renderMonthlyAmountChart(result.monthly_summary || []);
+            loadInputTaxSummary();
+        }
+
+        async function loadInputTaxSummary() {
+            var result = await apiRequest('/stats/input-tax-summary');
+            if (!result) return;
+            var period = result.period || '';
+            var periodEl = document.getElementById('input-tax-period');
+            if (periodEl) periodEl.textContent = period;
+            var certSummary = result.certified_summary || {cnt: 0, total_tax: 0};
+            var unvSummary = result.unverified_summary || {cnt: 0, total_tax: 0};
+            var certEl = document.getElementById('input-tax-certified');
+            var certCntEl = document.getElementById('input-tax-certified-cnt');
+            var unvEl = document.getElementById('input-tax-unverified');
+            var unvCntEl = document.getElementById('input-tax-unverified-cnt');
+            if (certEl) certEl.textContent = formatMoney(certSummary.total_tax);
+            if (certCntEl) certCntEl.textContent = certSummary.cnt + ' 张';
+            if (unvEl) unvEl.textContent = formatMoney(unvSummary.total_tax);
+            if (unvCntEl) unvCntEl.textContent = unvSummary.cnt + ' 张';
+            var tableEl = document.getElementById('input-tax-detail-table');
+            if (!tableEl) return;
+            var allRates = {};
+            (result.certified || []).forEach(function(r) { allRates[r.tax_rate] = allRates[r.tax_rate] || {}; allRates[r.tax_rate].certified = r; });
+            (result.unverified || []).forEach(function(r) { allRates[r.tax_rate] = allRates[r.tax_rate] || {}; allRates[r.tax_rate].unverified = r; });
+            var rates = Object.keys(allRates).sort();
+            if (rates.length === 0) {
+                tableEl.innerHTML = '<p class="text-text-muted text-xs text-center py-3">暂无专票数据</p>';
+                return;
+            }
+            var html = '<table class="data-table" style="font-size:12px;"><thead><tr><th>税率</th><th class="text-right">已认证税额</th><th class="text-right">待认证税额</th></tr></thead><tbody>';
+            rates.forEach(function(rate) {
+                var item = allRates[rate];
+                var certTax = (item.certified && item.certified.total_tax) || 0;
+                var unvTax = (item.unverified && item.unverified.total_tax) || 0;
+                html += '<tr><td>' + escapeHtml(rate) + '</td><td class="text-right" style="color:#10b981;">' + formatMoney(certTax) + '</td><td class="text-right" style="color:#f59e0b;">' + formatMoney(unvTax) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            tableEl.innerHTML = html;
         }
 
         function renderSellerRanking(sellers) {

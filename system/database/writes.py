@@ -153,6 +153,42 @@ class WritesMixin:
         logger.info(f"账本导出成功: {csv_path}")
         return csv_path
 
+    def update_verify_status(self, invoice_num, verify_status, verify_result=None):
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            verify_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if verify_result is not None:
+                cursor.execute("""
+                    UPDATE records SET verify_status = ?, verify_time = ?, verify_result = ?
+                    WHERE invoice_num = ?
+                """, (verify_status, verify_time, verify_result, invoice_num))
+            else:
+                cursor.execute("""
+                    UPDATE records SET verify_status = ?, verify_time = ?
+                    WHERE invoice_num = ?
+                """, (verify_status, verify_time, invoice_num))
+            conn.commit()
+            affected = cursor.rowcount > 0
+            if affected:
+                logger.info(f"验真状态更新: {invoice_num} -> {verify_status}")
+            return affected
+
+    def batch_update_deduction_status(self, invoice_nums, deduction_status, certification_date=None):
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cert_date = certification_date or datetime.now().strftime("%Y-%m-%d")
+            updated = 0
+            for invoice_num in invoice_nums:
+                cursor.execute("""
+                    UPDATE records SET deduction_status = ?, certification_date = ?
+                    WHERE invoice_num = ?
+                """, (deduction_status, cert_date, invoice_num))
+                if cursor.rowcount > 0:
+                    updated += 1
+            conn.commit()
+            logger.info(f"批量认证更新: {updated}/{len(invoice_nums)} 条, 状态={deduction_status}")
+            return updated
+
     def log_duplicate_record(self, invoice_num='', seller='', date='', total_amount=0,
                              invoice_code='', file_md5='', duplicate_type='',
                              existing_invoice_num='', filename='', batch_id=''):

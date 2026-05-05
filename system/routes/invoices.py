@@ -41,9 +41,12 @@ def get_invoices():
                 'total_amount': record.get('total_amount'),
                 'remark': record.get('remark'),
                 'invoice_type': record.get('invoice_type'),
+                'verify_status': record.get('verify_status', 'unverified'),
                 'deduction_status': None,
                 'deduction_deadline': None,
-                'days_remaining': None
+                'days_remaining': None,
+                'certification_status': record.get('deduction_status', 'unverified'),
+                'certification_date': record.get('certification_date', '')
             }
             inv_date = record.get('date', '')
             inv_type = record.get('invoice_type', '')
@@ -150,5 +153,58 @@ def get_sellers():
     try:
         sellers = db_manager.get_distinct_values('seller')
         return {'status': 'success', 'data': sellers}
+    except Exception as e:
+        return api_error(str(e))
+
+
+@invoices_bp.route('/api/invoices/batch-certify', methods=['POST'])
+def batch_certify_invoices():
+    try:
+        data = request.get_json()
+        invoice_nums = data.get('invoice_nums', [])
+        certification_date = data.get('certification_date')
+
+        if not invoice_nums or not isinstance(invoice_nums, list):
+            return {'status': 'error', 'message': '请提供发票号码列表'}, 400
+
+        updated = db_manager.batch_update_deduction_status(
+            invoice_nums, 'certified', certification_date
+        )
+        return {
+            'status': 'success',
+            'data': {
+                'updated': updated,
+                'total': len(invoice_nums)
+            },
+            'message': f'成功认证 {updated} 张发票'
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
+@invoices_bp.route('/api/invoices/<invoice_num>/verify', methods=['POST'])
+def verify_single_invoice(invoice_num):
+    try:
+        from ..core.verify import verify_invoice_mock, format_verify_result
+        record = db_manager.get_record_by_invoice_num(invoice_num)
+        if not record:
+            return {'status': 'error', 'message': '发票不存在'}, 404
+
+        result = verify_invoice_mock(record)
+        if result.get('status') != 'unverified':
+            db_manager.update_verify_status(
+                invoice_num,
+                result.get('status'),
+                format_verify_result(result)
+            )
+
+        return {
+            'status': 'success',
+            'data': {
+                'invoice_num': invoice_num,
+                'verify_status': result.get('status'),
+                'verify_message': result.get('message', '')
+            }
+        }
     except Exception as e:
         return api_error(str(e))

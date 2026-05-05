@@ -202,3 +202,88 @@ class QueriesMixin:
             """)
             type_stats = {row[0]: row[1] for row in cursor.fetchall()}
             return {'total': total, 'unique_invoices': unique_invoices, 'type_stats': type_stats}
+
+    def get_input_tax_summary(self, period=None):
+        if not period:
+            period = datetime.now().strftime("%Y-%m")
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT tax_rate,
+                       COUNT(*) as cnt,
+                       COALESCE(SUM(price_without_tax), 0) as total_price,
+                       COALESCE(SUM(tax_amount), 0) as total_tax,
+                       COALESCE(SUM(total_amount), 0) as total_amount
+                FROM records
+                WHERE invoice_type LIKE '%专%'
+                  AND strftime('%Y-%m', date) = ?
+                  AND deduction_status = 'certified'
+                GROUP BY tax_rate
+                ORDER BY tax_rate
+            """, (period,))
+            certified_rows = cursor.fetchall()
+            certified = []
+            for row in certified_rows:
+                certified.append({
+                    'tax_rate': row[0],
+                    'cnt': row[1],
+                    'total_price': round(row[2], 2),
+                    'total_tax': round(row[3], 2),
+                    'total_amount': round(row[4], 2)
+                })
+
+            cursor.execute("""
+                SELECT tax_rate,
+                       COUNT(*) as cnt,
+                       COALESCE(SUM(price_without_tax), 0) as total_price,
+                       COALESCE(SUM(tax_amount), 0) as total_tax,
+                       COALESCE(SUM(total_amount), 0) as total_amount
+                FROM records
+                WHERE invoice_type LIKE '%专%'
+                  AND strftime('%Y-%m', date) = ?
+                  AND deduction_status = 'unverified'
+                GROUP BY tax_rate
+                ORDER BY tax_rate
+            """, (period,))
+            unverified_rows = cursor.fetchall()
+            unverified = []
+            for row in unverified_rows:
+                unverified.append({
+                    'tax_rate': row[0],
+                    'cnt': row[1],
+                    'total_price': round(row[2], 2),
+                    'total_tax': round(row[3], 2),
+                    'total_amount': round(row[4], 2)
+                })
+
+            cursor.execute("""
+                SELECT COUNT(*), COALESCE(SUM(tax_amount), 0)
+                FROM records
+                WHERE invoice_type LIKE '%专%'
+                  AND strftime('%Y-%m', date) = ?
+                  AND deduction_status = 'certified'
+            """, (period,))
+            cert_summary = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT COUNT(*), COALESCE(SUM(tax_amount), 0)
+                FROM records
+                WHERE invoice_type LIKE '%专%'
+                  AND strftime('%Y-%m', date) = ?
+                  AND deduction_status = 'unverified'
+            """, (period,))
+            unv_summary = cursor.fetchone()
+
+            return {
+                'period': period,
+                'certified': certified,
+                'unverified': unverified,
+                'certified_summary': {
+                    'cnt': cert_summary[0],
+                    'total_tax': round(cert_summary[1], 2)
+                },
+                'unverified_summary': {
+                    'cnt': unv_summary[0],
+                    'total_tax': round(unv_summary[1], 2)
+                }
+            }

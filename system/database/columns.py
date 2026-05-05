@@ -4,5 +4,7 @@ RECORD_COLUMNS = [
     'price_without_tax', 'tax_rate', 'tax_amount', 'total_amount',
     'invoice_code', 'check_code', 'invoice_type', 'remark',
     'file_md5', 'sync_status', 'push_status',
-    'retry_count', 'last_error', 'process_time', 'error_type'
+    'retry_count', 'last_error', 'process_time', 'error_type',
+    'verify_status', 'verify_time', 'verify_result',
+    'deduction_status', 'certification_date'
 ]

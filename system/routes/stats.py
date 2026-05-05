@@ -82,6 +82,19 @@ def get_stats_summary():
         return api_error(str(e))
 
 
+@stats_bp.route('/api/stats/input-tax-summary', methods=['GET'])
+def get_input_tax_summary():
+    try:
+        period = request.args.get('period')
+        result = db_manager.get_input_tax_summary(period)
+        return {
+            'status': 'success',
+            'data': result
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
 @stats_bp.route('/api/stats/deduction-alert', methods=['GET'])
 def get_deduction_alert():
     try:

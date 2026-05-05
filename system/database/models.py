@@ -38,7 +38,12 @@ class ModelsMixin:
                     process_time TEXT,
                     batch_id TEXT,
                     error_type TEXT,
-                    verify_diff REAL DEFAULT 0
+                    verify_diff REAL DEFAULT 0,
+                    verify_status TEXT DEFAULT 'unverified',
+                    verify_time TEXT,
+                    verify_result TEXT,
+                    deduction_status TEXT DEFAULT 'unverified',
+                    certification_date TEXT
                 )
             """)
             cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_records_md5 ON records(file_md5)")
@@ -70,6 +75,11 @@ class ModelsMixin:
             ("error_type", "TEXT"),
             ("remark", "TEXT"),
             ("verify_diff", "REAL DEFAULT 0"),
+            ("verify_status", "TEXT DEFAULT 'unverified'"),
+            ("verify_time", "TEXT"),
+            ("verify_result", "TEXT"),
+            ("deduction_status", "TEXT DEFAULT 'unverified'"),
+            ("certification_date", "TEXT"),
         ]
         for col_name, col_type in migrations:
             if col_name not in existing_cols:
