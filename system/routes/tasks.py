@@ -10,10 +10,7 @@ tasks_bp = Blueprint('tasks', __name__)
 @tasks_bp.route('/api/tasks/pending', methods=['GET'])
 def get_pending_files():
     try:
-        try:
-            from ..services import scan_pending_files, ensure_directories
-        except ImportError:
-            from services import scan_pending_files, ensure_directories
+        from ..services import scan_pending_files, ensure_directories
         ensure_directories()
         pending_files = scan_pending_files()
         return {
@@ -27,12 +24,8 @@ def get_pending_files():
 @tasks_bp.route('/api/upload', methods=['POST'])
 def upload_files():
     try:
-        try:
-            from ..config import INPUT_DIR
-            from ..services import ensure_directories
-        except ImportError:
-            from config import INPUT_DIR
-            from services import ensure_directories
+        from ..config import INPUT_DIR
+        from ..services import ensure_directories
         ensure_directories()
         files = request.files.getlist('files')
         if not files:
@@ -65,10 +58,7 @@ _pipeline_result = {'running': False, 'stats': None, 'error': None}
 
 def _run_pipeline_async():
     try:
-        try:
-            from ..core.pipeline import run_pipeline
-        except ImportError:
-            from core.pipeline import run_pipeline
+        from ..core.pipeline import run_pipeline
         _pipeline_result['running'] = True
         _pipeline_result['stats'] = None
         _pipeline_result['error'] = None

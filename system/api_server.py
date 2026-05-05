@@ -1,21 +1,7 @@
-import sys
-from pathlib import Path
-
-_THIS_DIR = str(Path(__file__).resolve().parent)
-if _THIS_DIR not in sys.path:
-    sys.path.insert(0, _THIS_DIR)
-_PARENT_DIR = str(Path(__file__).resolve().parent.parent)
-if _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
-
 from flask import Flask, jsonify
 
-try:
-    from .routes import dashboard_bp, invoices_bp, stats_bp, tasks_bp, system_bp
-    from .routes.shared import api_error
-except ImportError:
-    from routes import dashboard_bp, invoices_bp, stats_bp, tasks_bp, system_bp
-    from routes.shared import api_error
+from .routes import dashboard_bp, invoices_bp, stats_bp, tasks_bp, system_bp
+from .routes.shared import api_error
 
 
 def create_app():

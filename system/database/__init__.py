@@ -1,8 +1,4 @@
 from .connection import DBManager
-from . import models
-from . import queries
-from . import writes
-from . import webhooks
-from . import locks
+from .columns import RECORD_COLUMNS
 
-__all__ = ["DBManager"]
+__all__ = ["DBManager", "RECORD_COLUMNS"]

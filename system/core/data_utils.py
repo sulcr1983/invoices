@@ -46,7 +46,7 @@ def clean_date(date_str):
                     y, mth, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
                 if 1 <= mth <= 12 and 1 <= d <= 31:
                     return f"{y}-{mth:02d}-{d:02d}"
-            except:
+            except Exception:
                 pass
     return ""
 

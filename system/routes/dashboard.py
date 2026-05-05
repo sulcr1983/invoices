@@ -8,10 +8,7 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/api/dashboard', methods=['GET'])
 def get_dashboard():
     try:
-        try:
-            from ..services import scan_pending_files, ensure_directories
-        except ImportError:
-            from services import scan_pending_files, ensure_directories
+        from ..services import scan_pending_files, ensure_directories
         from datetime import datetime
 
         stats = db_manager.get_stats()

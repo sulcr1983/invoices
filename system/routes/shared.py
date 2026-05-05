@@ -1,23 +1,10 @@
-import sys
 import logging
-from pathlib import Path
 from datetime import datetime
 
+from ..db_manager import DBManager
+from ..config import DB_PATH, LOG_PATH, ARCHIVE_DIR, PROJECT_ROOT, err_to_cn
+
 logger = logging.getLogger(__name__)
-
-_THIS_DIR = str(Path(__file__).resolve().parent)
-if _THIS_DIR not in sys.path:
-    sys.path.insert(0, _THIS_DIR)
-_PARENT_DIR = str(Path(__file__).resolve().parent.parent)
-if _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
-
-try:
-    from .db_manager import DBManager
-    from .config import DB_PATH, LOG_PATH, ARCHIVE_DIR, PROJECT_ROOT, err_to_cn
-except ImportError:
-    from db_manager import DBManager
-    from config import DB_PATH, LOG_PATH, ARCHIVE_DIR, PROJECT_ROOT, err_to_cn
 
 db_manager = DBManager(DB_PATH)
 process_logs = []

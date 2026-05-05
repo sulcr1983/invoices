@@ -1,11 +1,8 @@
 import logging
 
-logger = logging.getLogger(__name__)
+from ..webhook_manager import push_to_all_webhooks, compensate_webhooks
 
-try:
-    from ..webhook_manager import push_to_all_webhooks, compensate_webhooks
-except ImportError:
-    from system.webhook_manager import push_to_all_webhooks, compensate_webhooks
+logger = logging.getLogger(__name__)
 
 
 def push_invoice(record, db_manager):

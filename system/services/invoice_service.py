@@ -1,16 +1,11 @@
 import logging
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from ..extractor import extract_invoice
+from ..core.data_utils import calculate_file_md5
+from ..core.text_invoice_parser import validate_invoice as extractor_validate
 
-try:
-    from ..extractor import extract_invoice
-    from ..core.data_utils import calculate_file_md5
-    from ..core.text_invoice_parser import validate_invoice as extractor_validate
-except ImportError:
-    from extractor import extract_invoice
-    from core.data_utils import calculate_file_md5
-    from core.text_invoice_parser import validate_invoice as extractor_validate
+logger = logging.getLogger(__name__)
 
 
 def validate_invoice_record(record):

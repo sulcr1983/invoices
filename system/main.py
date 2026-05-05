@@ -1,37 +1,14 @@
-import sys
-from pathlib import Path
-
-_THIS_DIR = str(Path(__file__).resolve().parent)
-if _THIS_DIR not in sys.path:
-    sys.path.insert(0, _THIS_DIR)
-_PARENT_DIR = str(Path(__file__).resolve().parent.parent)
-if _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
-
 import logging
 import argparse
 
-try:
-    from .config import (
-        DB_PATH, LOG_LEVEL, LOG_FORMAT,
-        setup_logging as config_setup_logging
-    )
-except ImportError:
-    from config import (
-        DB_PATH, LOG_LEVEL, LOG_FORMAT,
-        setup_logging as config_setup_logging
-    )
-
-try:
-    from .core.pipeline import check_environment, run_pipeline, generate_batch_id, print_summary_table
-    from .services.file_service import ensure_directories
-    from .db_manager import DBManager
-    from .services import scan_pending_files, compensate_pending
-except ImportError:
-    from core.pipeline import check_environment, run_pipeline, generate_batch_id, print_summary_table
-    from services.file_service import ensure_directories
-    from db_manager import DBManager
-    from services import scan_pending_files, compensate_pending
+from .config import (
+    DB_PATH, LOG_LEVEL, LOG_FORMAT,
+    setup_logging as config_setup_logging
+)
+from .core.pipeline import check_environment, run_pipeline, generate_batch_id, print_summary_table
+from .services.file_service import ensure_directories
+from .db_manager import DBManager
+from .services import scan_pending_files, compensate_pending
 
 logger = logging.getLogger(__name__)
 

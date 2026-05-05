@@ -1,28 +1,13 @@
-import asyncio
 import requests
 import json
 import logging
 import time
-from datetime import datetime
-try:
-    from .config import REQUEST_TIMEOUT
-    from .core.webhook_payload import _str, _amount, _normalize_text, _build_fields, _get_default_for_extra_field
-    from .core.webhook_payload import build_wecom_payload, PAYLOAD_BUILDERS, PLATFORM_LABELS
-except ImportError:
-    from config import REQUEST_TIMEOUT
-    from core.webhook_payload import _str, _amount, _normalize_text, _build_fields, _get_default_for_extra_field
-    from core.webhook_payload import build_wecom_payload, PAYLOAD_BUILDERS, PLATFORM_LABELS
+
+from .config import REQUEST_TIMEOUT
+from .core.webhook_payload import build_wecom_payload, PAYLOAD_BUILDERS, PLATFORM_LABELS
+from .database.columns import RECORD_COLUMNS
 
 logger = logging.getLogger(__name__)
-
-RECORD_COLUMNS = [
-    'invoice_num', 'seller', 'seller_tax_id',
-    'date', 'buyer', 'buyer_tax_id', 'item',
-    'price_without_tax', 'tax_rate', 'tax_amount', 'total_amount',
-    'invoice_code', 'check_code', 'invoice_type', 'remark',
-    'file_md5', 'sync_status', 'push_status',
-    'retry_count', 'last_error', 'process_time', 'error_type'
-]
 
 
 def row_to_dict(row):
@@ -92,66 +77,6 @@ def push_single_webhook(record_dict, webhook, db_manager):
     return False
 
 
-async def async_push_single_webhook(record_dict, webhook, db_manager):
-    import aiohttp
-    hook_id = webhook["id"]
-    platform = webhook["platform"]
-    url = webhook["url"]
-    max_retries = webhook.get("max_retries", 3)
-    label = PLATFORM_LABELS.get(platform, platform)
-    invoice_num = record_dict.get("invoice_num", "")
-
-    builder = PAYLOAD_BUILDERS.get(platform)
-    if not builder:
-        logger.warning(f"未知平台类型: {platform}，跳过")
-        return False
-
-    try:
-        if platform == "wecom":
-            schema_str = webhook.get("schema_json") or "{}"
-            schema = json.loads(schema_str)
-            payload = builder(record_dict, schema)
-        else:
-            payload = builder(record_dict)
-    except (json.JSONDecodeError, ValueError, TypeError) as e:
-        error_msg = f"payload 构建失败: {e}"
-        logger.error(f"[{label}][{invoice_num}] {error_msg}")
-        db_manager.add_push_history(invoice_num, hook_id, platform, "failed", error_msg)
-        db_manager.update_webhook_push_result(hook_id, "failed", error_msg)
-        return False
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)) as resp:
-                    if resp.status == 200:
-                        result = await resp.json()
-                        errcode = result.get("errcode", 0)
-                        if errcode == 0:
-                            logger.info(f"[{label}][{invoice_num}] 异步推送成功 (id={hook_id})")
-                            db_manager.add_push_history(invoice_num, hook_id, platform, "success")
-                            db_manager.update_webhook_push_result(hook_id, "success")
-                            return True
-                        else:
-                            error_msg = f"errcode={errcode}, {result.get('errmsg','')}"
-                    else:
-                        error_msg = f"HTTP {resp.status}: {resp.text[:100]}"
-        except asyncio.TimeoutError:
-            error_msg = "连接超时"
-        except Exception as e:
-            error_msg = str(e)[:80]
-
-        if attempt < max_retries:
-            logger.warning(f"[{label}][{invoice_num}] 异步推送失败(第{attempt}次): {error_msg}")
-        else:
-            logger.error(f"[{label}][{invoice_num}] 异步推送失败(已达最大重试): {error_msg}")
-            db_manager.add_push_history(invoice_num, hook_id, platform, "failed", error_msg, retry_num=attempt)
-            db_manager.update_webhook_push_result(hook_id, "failed", error_msg)
-            return False
-
-    return False
-
-
 def push_to_all_webhooks(record_dict, db_manager):
     invoice_num = record_dict.get("invoice_num", "")
     webhooks = db_manager.get_all_webhooks(only_enabled=True)
@@ -180,42 +105,6 @@ def push_to_all_webhooks(record_dict, db_manager):
         db_manager.update_push_failed(invoice_num, new_retry, error_detail, 'webhook_error')
 
     return any_ok, results
-
-
-async def async_push_to_all_webhooks(record_dict, db_manager):
-    import asyncio
-    invoice_num = record_dict.get("invoice_num", "")
-    webhooks = db_manager.get_all_webhooks(only_enabled=True)
-
-    if not webhooks:
-        logger.debug(f"无 webhook 配置，跳过异步多路推送: {invoice_num}")
-        db_manager.update_push_success(invoice_num)
-        return True, []
-
-    tasks = []
-    for wh in webhooks:
-        task = async_push_single_webhook(record_dict, wh, db_manager)
-        tasks.append((wh, task))
-
-    # 并行推送
-    results_data = []
-    for wh, task in tasks:
-        ok = await task
-        results_data.append((wh["platform"], wh["name"], ok))
-
-    any_ok = any(r[2] for r in results_data)
-    summary = "; ".join([f"[{r[0]}]{r[1]}={'OK' if r[2] else 'FAIL'}" for r in results_data])
-    logger.info(f"异步多路推送完成 [{invoice_num}]: {summary}")
-
-    if any_ok:
-        db_manager.update_push_success(invoice_num)
-    else:
-        current_status, current_retry = db_manager.get_push_status(invoice_num)
-        new_retry = (current_retry or 0) + 1
-        error_detail = summary[:200]
-        db_manager.update_push_failed(invoice_num, new_retry, error_detail, 'webhook_error')
-
-    return any_ok, results_data
 
 
 def compensate_webhooks(db_manager):

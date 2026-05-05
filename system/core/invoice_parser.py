@@ -1,21 +1,8 @@
 import re
 import logging
-import sys
-from pathlib import Path
 
-_THIS_DIR = str(Path(__file__).resolve().parent)
-if _THIS_DIR not in sys.path:
-    sys.path.insert(0, _THIS_DIR)
-_PARENT_DIR = str(Path(__file__).resolve().parent.parent)
-if _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
-
-try:
-    from ..config import INVOICE_TEMPLATE
-    from .data_utils import clean_amount, clean_date, clean_seller_name
-except ImportError:
-    from config import INVOICE_TEMPLATE
-    from core.data_utils import clean_amount, clean_date, clean_seller_name
+from ..config import INVOICE_TEMPLATE
+from .data_utils import clean_amount, clean_date, clean_seller_name
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +45,7 @@ def _extract_invoice_details(words_result):
                 if rv < 1:
                     rv *= 100
                 rate_list[r_idx] = f"{rv}%"
-            except:
+            except Exception:
                 pass
 
     max_count = max(len(name_list), len(amount_list), len(tax_amount_list))
@@ -83,7 +70,7 @@ def _extract_invoice_details(words_result):
 
 
 def map_baidu_vat_result(words_result):
-    record = {k: v if v != "" else "" for k, v in INVOICE_TEMPLATE.items()}
+    record = dict(INVOICE_TEMPLATE)
 
     def get_field(field_name):
         field_data = words_result.get(field_name, {})
@@ -147,7 +134,7 @@ def map_baidu_vat_result(words_result):
                 if rate_float < 1:
                     rate_float *= 100
                 record['tax_rate'] = f"{rate_float}%"
-            except:
+            except Exception:
                 record['tax_rate'] = tax_rate_str
     else:
         record['tax_rate'] = "0%"

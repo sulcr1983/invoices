@@ -4,36 +4,14 @@ import uuid
 from pathlib import Path
 from datetime import datetime
 
-try:
-    from ..config import INPUT_DIR, FAILED_DIR, DB_PATH, LEDGER_PATH
-except ImportError:
-    from config import INPUT_DIR, FAILED_DIR, DB_PATH, LEDGER_PATH
-
-try:
-    from ..db_manager import DBManager
-except ImportError:
-    from db_manager import DBManager
-
-try:
-    from ..services.file_service import ensure_directories
-except ImportError:
-    from services.file_service import ensure_directories
-
-try:
-    from ..services import (
-        scan_pending_files, move_to_processing, move_from_processing,
-        get_archive_path, process_invoice_file, push_invoice, compensate_pending
-    )
-except ImportError:
-    from services import (
-        scan_pending_files, move_to_processing, move_from_processing,
-        get_archive_path, process_invoice_file, push_invoice, compensate_pending
-    )
-
-try:
-    from ..extractor import calculate_file_md5
-except ImportError:
-    from extractor import calculate_file_md5
+from ..config import INPUT_DIR, FAILED_DIR, DB_PATH, LEDGER_PATH
+from ..db_manager import DBManager
+from ..services.file_service import ensure_directories
+from ..services import (
+    scan_pending_files, move_to_processing, move_from_processing,
+    get_archive_path, process_invoice_file, push_invoice, compensate_pending
+)
+from ..extractor import calculate_file_md5
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +62,6 @@ def check_environment():
     required_libs = {
         'pdfplumber': 'pdfplumber',
         'requests': 'requests',
-        'pandas': 'pandas',
         'PIL': 'pillow',
         'dotenv': 'python-dotenv',
         'Flask': 'flask',
@@ -198,7 +175,7 @@ def run_pipeline():
                     filename=filename,
                     batch_id=batch_id
                 )
-                from services.file_service import move_to_duplicate
+                from ..services.file_service import move_to_duplicate
                 try:
                     move_to_duplicate(file_path, filename)
                     logger.info(f"文件移至重复目录: {filename}")
@@ -259,7 +236,7 @@ def run_pipeline():
                 except Exception as e:
                     logger.error(f"归档失败: {processing_path} -> {archive_path}, 错误: {e}")
                     try:
-                        from services.file_service import move_to_failed
+                        from ..services.file_service import move_to_failed
                         move_to_failed(processing_path, filename)
                     except Exception:
                         pass

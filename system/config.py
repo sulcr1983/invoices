@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
@@ -5,7 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BASE_DIR.parent
+PROJECT_ROOT = Path(os.environ.get('INVOICE_PROJECT_ROOT', '')).resolve() if os.environ.get('INVOICE_PROJECT_ROOT') else BASE_DIR.parent
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -15,21 +16,23 @@ ARCHIVE_DIR = PROJECT_ROOT / "已归档发票"
 FAILED_DIR = PROJECT_ROOT / "识别失败待处理"
 DUPLICATE_DIR = PROJECT_ROOT / "重复发票记录"
 DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DB_PATH = DATA_DIR / "invoices.db"
 LEDGER_PATH = PROJECT_ROOT / "发票台账.csv"
 LOG_PATH = BASE_DIR / "logs" / "app.log"
+LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-WECOM_WEBHOOK_URL = __import__('os').environ.get("WECOM_WEBHOOK_URL", "")
-WECOM_SCHEMA = __import__('os').environ.get("WECOM_SCHEMA", "{}")
+WECOM_WEBHOOK_URL = os.environ.get("WECOM_WEBHOOK_URL", "")
+WECOM_SCHEMA = os.environ.get("WECOM_SCHEMA", "{}")
 
-ENABLE_ALERT = __import__('os').environ.get("ENABLE_ALERT", "false").lower() == "true"
-ALERT_WEBHOOK_URL = __import__('os').environ.get("ALERT_WEBHOOK_URL", "")
+ENABLE_ALERT = os.environ.get("ENABLE_ALERT", "false").lower() == "true"
+ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "")
 
-BAIDU_APP_ID = __import__('os').environ.get("BAIDU_APP_ID", "")
-BAIDU_API_KEY = __import__('os').environ.get("BAIDU_API_KEY", "")
-BAIDU_SECRET_KEY = __import__('os').environ.get("BAIDU_SECRET_KEY", "")
-BAIDU_OCR_TYPE = __import__('os').environ.get("BAIDU_OCR_TYPE", "vat_invoice")
+BAIDU_APP_ID = os.environ.get("BAIDU_APP_ID", "")
+BAIDU_API_KEY = os.environ.get("BAIDU_API_KEY", "")
+BAIDU_SECRET_KEY = os.environ.get("BAIDU_SECRET_KEY", "")
+BAIDU_OCR_TYPE = os.environ.get("BAIDU_OCR_TYPE", "vat_invoice")
 
 INVOICE_FIELD_NAMES = {
     "invoice_num": "发票号码",
@@ -78,15 +81,15 @@ INVOICE_TEMPLATE = {
     "batch_id": ""
 }
 
-RETRY_MAX_ATTEMPTS = int(__import__('os').environ.get("RETRY_MAX_ATTEMPTS", "3"))
-RETRY_DELAY_SECONDS = int(__import__('os').environ.get("RETRY_DELAY_SECONDS", "2"))
-SQLITE_TIMEOUT = int(__import__('os').environ.get("SQLITE_TIMEOUT", "20"))
-REQUEST_TIMEOUT = int(__import__('os').environ.get("REQUEST_TIMEOUT", "10"))
+RETRY_MAX_ATTEMPTS = int(os.environ.get("RETRY_MAX_ATTEMPTS", "3"))
+RETRY_DELAY_SECONDS = int(os.environ.get("RETRY_DELAY_SECONDS", "2"))
+SQLITE_TIMEOUT = int(os.environ.get("SQLITE_TIMEOUT", "20"))
+REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
 
-LOG_LEVEL = getattr(logging, __import__('os').environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
+LOG_LEVEL = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
 LOG_FORMAT = "%(asctime)s / %(levelname)s / %(name)s / %(message)s"
-LOG_MAX_BYTES = int(__import__('os').environ.get("LOG_MAX_BYTES", 10 * 1024 * 1024))
-LOG_BACKUP_COUNT = int(__import__('os').environ.get("LOG_BACKUP_COUNT", "3"))
+LOG_MAX_BYTES = int(os.environ.get("LOG_MAX_BYTES", 10 * 1024 * 1024))
+LOG_BACKUP_COUNT = int(os.environ.get("LOG_BACKUP_COUNT", "3"))
 
 FILE_ENCODING = "utf-8"
 CSV_ENCODING = "utf-8-sig"

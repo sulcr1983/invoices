@@ -3,15 +3,8 @@ import xml.etree.ElementTree as ET
 import re
 import logging
 
-try:
-    from .data_utils import clean_amount, clean_date, clean_seller_name
-except ImportError:
-    from core.data_utils import clean_amount, clean_date, clean_seller_name
-
-try:
-    from ..config import INVOICE_TEMPLATE
-except ImportError:
-    from config import INVOICE_TEMPLATE
+from .data_utils import clean_amount, clean_date, clean_seller_name
+from ..config import INVOICE_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +46,7 @@ def _parse_ofd_standard(zf):
     if not has_key_data and not page_texts:
         return None
 
-    record = {k: v if v != "" else "" for k, v in INVOICE_TEMPLATE.items()}
+    record = dict(INVOICE_TEMPLATE)
 
     if custom_data.get('发票号码'):
         record['invoice_num'] = custom_data['发票号码'].strip()
@@ -347,6 +340,48 @@ def _extract_amounts_from_texts(texts):
 
 def _extract_details_from_page(page_texts, custom_data):
     details = []
+    if not page_texts:
+        return details
+
+    item_indices = []
+    for i, text in enumerate(page_texts):
+        if any(kw in text for kw in ['服务', '货物', '技术', '咨询', '材料', '设备', '工程', '租赁', '维修', '运输']):
+            if len(text) >= 2 and len(text) <= 30:
+                if not re.match(r'^[\d.%¥￥]+$', text):
+                    item_indices.append(i)
+
+    for idx in item_indices:
+        item_name = page_texts[idx]
+        tax_rate = ''
+        amount = 0.0
+        tax_amount = 0.0
+
+        for j in range(idx + 1, min(idx + 6, len(page_texts))):
+            text = page_texts[j]
+            rate_m = re.search(r'(\d+(?:\.\d+)?)%', text)
+            if rate_m and not tax_rate:
+                tax_rate = rate_m.group(0)
+                continue
+            amt_m = re.search(r'[\d,]+\.?\d*', text.replace('¥', '').replace('￥', '').replace(',', ''))
+            if amt_m:
+                try:
+                    val = float(amt_m.group())
+                    if val > 0:
+                        if amount == 0.0:
+                            amount = val
+                        elif tax_amount == 0.0 and val < amount:
+                            tax_amount = val
+                except ValueError:
+                    continue
+
+        if item_name and (amount > 0 or tax_rate):
+            details.append({
+                'item_name': item_name,
+                'tax_rate': tax_rate,
+                'amount': round(amount, 2),
+                'tax_amount': round(tax_amount, 2),
+            })
+
     return details
 
 
@@ -443,7 +478,7 @@ def _parse_tax_bureau_format(root):
     if not fpdm and not fphm:
         return None
 
-    record = {k: v if v != "" else "" for k, v in INVOICE_TEMPLATE.items()}
+    record = dict(INVOICE_TEMPLATE)
 
     record['invoice_code'] = fpdm
     record['invoice_num'] = fphm
@@ -532,7 +567,7 @@ def _parse_einvoice_format(root):
     if _find_text_recursive(root, 'fpdm') or _find_text_recursive(root, 'fphm'):
         return None
 
-    record = {k: v if v != "" else "" for k, v in INVOICE_TEMPLATE.items()}
+    record = dict(INVOICE_TEMPLATE)
 
     record['invoice_code'] = invoice_code
     record['invoice_num'] = invoice_num
@@ -600,7 +635,7 @@ def _parse_flat_format(root):
     if not invoice_num and not invoice_code:
         return None
 
-    record = {k: v if v != "" else "" for k, v in INVOICE_TEMPLATE.items()}
+    record = dict(INVOICE_TEMPLATE)
     record['invoice_num'] = invoice_num
     record['invoice_code'] = invoice_code
     record['date'] = clean_date(extract_by_keyword(raw, '开票日期', 'InvoiceDate', 'kprq'))

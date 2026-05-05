@@ -1,31 +1,16 @@
 import re
 import logging
-import sys
-from pathlib import Path
 
-_THIS_DIR = str(Path(__file__).resolve().parent)
-if _THIS_DIR not in sys.path:
-    sys.path.insert(0, _THIS_DIR)
-_PARENT_DIR = str(Path(__file__).resolve().parent.parent)
-if _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
-
-try:
-    from ..config import INVOICE_TEMPLATE
-    from .data_utils import (
-        clean_amount, clean_date, clean_seller_name, safe_get_field, is_valid_date
-    )
-except ImportError:
-    from config import INVOICE_TEMPLATE
-    from core.data_utils import (
-        clean_amount, clean_date, clean_seller_name, safe_get_field, is_valid_date
-    )
+from ..config import INVOICE_TEMPLATE
+from .data_utils import (
+    clean_amount, clean_date, clean_seller_name, safe_get_field, is_valid_date
+)
 
 logger = logging.getLogger(__name__)
 
 
 def parse_invoice_text_fallback(text, file_path):
-    record = {k: v if v != "" else "" for k, v in INVOICE_TEMPLATE.items()}
+    record = dict(INVOICE_TEMPLATE)
 
     lines = text.split('\n')
     is_railway = "铁路" in text or "客票" in text
@@ -82,7 +67,7 @@ def parse_invoice_text_fallback(text, file_path):
                     num = float(num_str_clean)
                     if num > 0:
                         all_numbers.append(num)
-                except:
+                except Exception:
                     pass
         if all_numbers:
             return str(max(all_numbers))

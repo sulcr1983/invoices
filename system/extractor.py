@@ -1,20 +1,12 @@
 import logging
 from pathlib import Path
 
-try:
-    from .core.baidu_ocr import is_baidu_ocr_available, extract_from_baidu_vat_invoice
-    from .core.pdf_utils import extract_from_pdf_plumber
-    from .core.text_invoice_parser import parse_invoice_text_fallback
-    from .core.invoice_parser import map_baidu_vat_result
-    from .core.ofd_parser import is_ofd_file, extract_invoice_from_ofd
-    from .core.data_utils import calculate_file_md5
-except ImportError:
-    from core.baidu_ocr import is_baidu_ocr_available, extract_from_baidu_vat_invoice
-    from core.pdf_utils import extract_from_pdf_plumber
-    from core.text_invoice_parser import parse_invoice_text_fallback
-    from core.invoice_parser import map_baidu_vat_result
-    from core.ofd_parser import is_ofd_file, extract_invoice_from_ofd
-    from core.data_utils import calculate_file_md5
+from .core.baidu_ocr import is_baidu_ocr_available, extract_from_baidu_vat_invoice
+from .core.pdf_utils import extract_from_pdf_plumber
+from .core.text_invoice_parser import parse_invoice_text_fallback
+from .core.invoice_parser import map_baidu_vat_result
+from .core.ofd_parser import is_ofd_file, extract_invoice_from_ofd
+from .core.data_utils import calculate_file_md5
 
 logger = logging.getLogger(__name__)
 

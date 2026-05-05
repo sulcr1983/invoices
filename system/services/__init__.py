@@ -3,7 +3,6 @@ from .file_service import (
     scan_pending_files,
     move_to_processing,
     move_from_processing,
-    move_to_done,
     move_to_failed,
     move_to_duplicate,
     get_archive_path
@@ -23,7 +22,6 @@ __all__ = [
     'ensure_directories',
     'scan_pending_files',
     'move_to_processing',
-    'move_to_done',
     'move_to_failed',
     'move_to_duplicate',
     'get_archive_path',

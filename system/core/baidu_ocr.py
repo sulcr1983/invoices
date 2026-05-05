@@ -4,20 +4,7 @@ import time
 import zipfile
 import requests
 
-import sys
-from pathlib import Path
-
-_THIS_DIR = str(Path(__file__).resolve().parent)
-if _THIS_DIR not in sys.path:
-    sys.path.insert(0, _THIS_DIR)
-_PARENT_DIR = str(Path(__file__).resolve().parent.parent)
-if _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
-
-try:
-    from .pdf_utils import pdf_to_images_via_pymupdf
-except ImportError:
-    from core.pdf_utils import pdf_to_images_via_pymupdf
+from .pdf_utils import pdf_to_images_via_pymupdf
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +24,8 @@ def get_baidu_access_token():
             logger.warning("百度OCR配置不完整，API Key或Secret Key缺失")
             return None
     except (ImportError, AttributeError):
-        try:
-            from config import BAIDU_API_KEY, BAIDU_SECRET_KEY
-            if not BAIDU_API_KEY or not BAIDU_SECRET_KEY:
-                logger.warning("百度OCR配置不完整，API Key或Secret Key缺失")
-                return None
-        except (ImportError, AttributeError):
-            logger.warning("无法读取百度OCR配置")
-            return None
+        logger.warning("无法读取百度OCR配置")
+        return None
 
     try:
         token_url = "https://aip.baidubce.com/oauth/2.0/token"
@@ -75,11 +56,7 @@ def is_baidu_ocr_available():
         from ..config import BAIDU_API_KEY, BAIDU_SECRET_KEY
         return bool(BAIDU_API_KEY and BAIDU_SECRET_KEY)
     except (ImportError, AttributeError):
-        try:
-            from config import BAIDU_API_KEY, BAIDU_SECRET_KEY
-            return bool(BAIDU_API_KEY and BAIDU_SECRET_KEY)
-        except (ImportError, AttributeError):
-            return False
+        return False
 
 
 def extract_from_baidu_vat_invoice(file_path):

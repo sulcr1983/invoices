@@ -1,8 +1,5 @@
 import logging
-try:
-    from ..config import INVOICE_FIELD_NAMES
-except ImportError:
-    from config import INVOICE_FIELD_NAMES
+from ..config import INVOICE_FIELD_NAMES
 
 logger = logging.getLogger(__name__)
 

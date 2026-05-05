@@ -47,12 +47,8 @@ def get_system_logs():
 @system_bp.route('/api/system/status', methods=['GET'])
 def get_system_status():
     try:
-        try:
-            from ..core.pipeline import check_environment
-            from ..services import ensure_directories
-        except ImportError:
-            from core.pipeline import check_environment
-            from services import ensure_directories
+        from ..core.pipeline import check_environment
+        from ..services import ensure_directories
         env_ok = check_environment()
         db_ok = True
         try:
@@ -85,10 +81,7 @@ def view_original_invoice():
         if not record:
             return {'status': 'error', 'message': '未找到对应文件'}, 404
 
-        try:
-            from ..core.data_utils import calculate_file_md5
-        except ImportError:
-            from core.data_utils import calculate_file_md5
+        from ..core.data_utils import calculate_file_md5
 
         archive_dir = Path(str(ARCHIVE_DIR))
         archive_path = None
@@ -113,10 +106,7 @@ def view_original_invoice():
 @system_bp.route('/api/invoice/file/<file_md5>', methods=['GET'])
 def serve_original_invoice(file_md5):
     try:
-        try:
-            from ..core.data_utils import calculate_file_md5
-        except ImportError:
-            from core.data_utils import calculate_file_md5
+        from ..core.data_utils import calculate_file_md5
 
         archive_dir = Path(str(ARCHIVE_DIR))
         archive_path = None

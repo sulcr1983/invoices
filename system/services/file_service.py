@@ -3,10 +3,7 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
-try:
-    from ..config import INPUT_DIR, PROCESSING_DIR, ARCHIVE_DIR, FAILED_DIR, DUPLICATE_DIR
-except ImportError:
-    from config import INPUT_DIR, PROCESSING_DIR, ARCHIVE_DIR, FAILED_DIR, DUPLICATE_DIR
+from ..config import INPUT_DIR, PROCESSING_DIR, ARCHIVE_DIR, FAILED_DIR, DUPLICATE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -127,16 +124,6 @@ def move_from_processing(src_path, dest_path):
         return str(dest)
     except Exception as e:
         logger.error(f"文件移动失败: {src_path} -> {dest_path}, 错误: {e}")
-        raise
-
-
-def move_to_done(processing_path, dest_path):
-    try:
-        final_path = move_from_processing(processing_path, dest_path)
-        logger.info(f"文件归档成功: {final_path}")
-        return final_path
-    except Exception as e:
-        logger.error(f"文件归档失败: {processing_path} -> {dest_path}, 错误: {e}")
         raise
 
 
