@@ -716,6 +716,11 @@ const API_BASE = '/api';
                     riskBadgeArea.style.display = 'none';
                 }
             }
+            var viewBtn = document.getElementById('btn-view-original');
+            if (viewBtn) {
+                if (data.file_md5) { viewBtn.dataset.md5 = data.file_md5; viewBtn.style.display = 'inline-flex'; }
+                else { viewBtn.style.display = 'none'; }
+            }
 
             document.getElementById('invoice-detail-modal').classList.add('show');
             loadDatalistOptions();
@@ -1289,6 +1294,11 @@ const API_BASE = '/api';
             document.getElementById('btn-confirm-process').addEventListener('click', doStartProcessing);
             document.getElementById('btn-clear-logs').addEventListener('click', clearLogs);
             document.getElementById('btn-save-all').addEventListener('click', saveAll);
+            document.getElementById('btn-view-original').addEventListener('click', function() {
+                var md5 = this.dataset.md5;
+                if (!md5) return;
+                window.open('/api/invoice/file/' + md5, '_blank');
+            });
             document.getElementById('search-keyword').addEventListener('keyup', function(e) { if (e.key === 'Enter') loadInvoices(1); });
             document.getElementById('top-search-input').addEventListener('keyup', function(e) {
                 if (e.key === 'Enter' && this.value.trim()) {
