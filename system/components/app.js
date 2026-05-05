@@ -36,7 +36,10 @@ const API_BASE = '/api';
                 if (data) options.body = JSON.stringify(data);
                 const response = await fetch(API_BASE + endpoint, options);
                 const result = await response.json();
-                return result.status === 'success' ? result.data : null;
+                if (result.status === 'success') {
+                    return result.data !== undefined ? result.data : result;
+                }
+                return null;
             } catch (error) {
                 console.error('API错误:', error);
                 return null;
@@ -376,25 +379,44 @@ const API_BASE = '/api';
             logsContainer.innerHTML = '';
             addLogEntry('系统就绪，准备处理发票...', 'info');
             addLogEntry('开始批量处理...', 'info');
-            var data = await apiRequest('/tasks/process', 'POST');
-            if (data) {
-                await loadLogs();
-                showSuccessModal('处理完成', '所有待识别发票已处理完毕', data.stats);
-                document.getElementById('task-session-label').textContent = '当前会话 · 已完成';
-                document.getElementById('task-stat-success').textContent = data.stats.success || 0;
-                document.getElementById('task-stat-duplicate').textContent = data.stats.duplicate || 0;
-                document.getElementById('task-stat-failed').textContent = data.stats.failed || 0;
-                loadDashboard();
-            } else {
-                showSuccessModal('处理失败', '请检查系统日志或文件状态', null);
+
+            var startData = await apiRequest('/tasks/process', 'POST');
+            if (!startData) {
+                showSuccessModal('处理失败', '无法启动处理任务', null);
                 document.getElementById('task-session-label').textContent = '当前会话 · 处理失败';
+                btnTop.disabled = false; heroBtn.disabled = false;
+                btnTop.innerHTML = '<i class="fa fa-play-circle"></i> 开始处理';
+                heroBtn.innerHTML = '<i class="fa fa-play-circle"></i> <span id="hero-btn-text">开始处理发票</span>';
+                progressEl.classList.add('hidden');
+                if (progressLabel) progressLabel.classList.add('hidden');
+                return;
             }
 
-            btnTop.disabled = false; heroBtn.disabled = false;
-            btnTop.innerHTML = '<i class="fa fa-play-circle"></i> 开始处理';
-            heroBtn.innerHTML = '<i class="fa fa-play-circle"></i> <span id="hero-btn-text">开始处理发票</span>';
-            progressEl.classList.add('hidden');
-            if (progressLabel) progressLabel.classList.add('hidden');
+            var pollInterval = setInterval(async function() {
+                await loadLogs();
+                var statusData = await apiRequest('/tasks/status');
+                if (statusData && !statusData.running) {
+                    clearInterval(pollInterval);
+                    var stats = statusData.stats || {success: 0, duplicate: 0, failed: 0};
+                    var error = statusData.error;
+                    if (error) {
+                        showSuccessModal('处理失败', '请检查系统日志或文件状态', null);
+                        document.getElementById('task-session-label').textContent = '当前会话 · 处理失败';
+                    } else {
+                        showSuccessModal('处理完成', '所有待识别发票已处理完毕', stats);
+                        document.getElementById('task-session-label').textContent = '当前会话 · 已完成';
+                        document.getElementById('task-stat-success').textContent = stats.success || 0;
+                        document.getElementById('task-stat-duplicate').textContent = stats.duplicate || 0;
+                        document.getElementById('task-stat-failed').textContent = stats.failed || 0;
+                        loadDashboard();
+                    }
+                    btnTop.disabled = false; heroBtn.disabled = false;
+                    btnTop.innerHTML = '<i class="fa fa-play-circle"></i> 开始处理';
+                    heroBtn.innerHTML = '<i class="fa fa-play-circle"></i> <span id="hero-btn-text">开始处理发票</span>';
+                    progressEl.classList.add('hidden');
+                    if (progressLabel) progressLabel.classList.add('hidden');
+                }
+            }, 1500);
         }
 
         function addLogEntry(message, level) {
