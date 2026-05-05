@@ -54,9 +54,7 @@
                     <div class="nav-tab" data-page="invoices" onclick="switchPage('invoices')">
                         <i class="fa fa-list-alt"></i><span>发票台账</span>
                     </div>
-                    <div class="nav-tab" data-page="tasks" onclick="switchPage('tasks')">
-                        <i class="fa fa-tasks"></i><span>任务中心</span>
-                    </div>
+
                 </nav>
                 <div class="flex items-center gap-2">
                     <div class="relative hidden md:block">
@@ -115,8 +113,8 @@
                 </div>
             </div>
 
-            <!-- 统计卡片 -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <!-- 统计卡片 3x2 -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
                 <div class="glass-card p-4 float-up">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-warning-bg);color:var(--color-warning);"><i class="fa fa-clock-o"></i></div>
@@ -135,15 +133,27 @@
                         <div><p class="stat-label">本月新增</p><p class="stat-number" style="color:var(--color-primary);font-size:24px;" id="stat-month-cnt">-</p></div>
                     </div>
                 </div>
-                <div class="glass-card p-4 float-up cursor-pointer" onclick="loadDeductionAlert()" id="deduction-alert-card">
+                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #ef4444;">
                     <div class="flex items-center gap-3">
-                        <div class="icon-circle" style="background:var(--color-danger-bg);color:var(--color-danger);"><i class="fa fa-bell-o"></i></div>
-                        <div><p class="stat-label">到期预警</p><p class="stat-number" style="color:var(--color-danger);font-size:24px;" id="stat-deduction-alert">-</p></div>
+                        <div class="icon-circle" style="background:var(--color-danger-bg);color:var(--color-danger);"><i class="fa fa-shield"></i></div>
+                        <div><p class="stat-label">待验真发票</p><p class="stat-number" style="color:#ef4444;font-size:24px;" id="stat-verify-pending">5</p></div>
+                    </div>
+                </div>
+                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #f59e0b;">
+                    <div class="flex items-center gap-3">
+                        <div class="icon-circle" style="background:var(--color-warning-bg);color:var(--color-warning);"><i class="fa fa-check-circle-o"></i></div>
+                        <div><p class="stat-label">待认证专票</p><p class="stat-number" style="color:#f59e0b;font-size:24px;" id="stat-certify-pending">12</p></div>
+                    </div>
+                </div>
+                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #dc2626;">
+                    <div class="flex items-center gap-3">
+                        <div class="icon-circle" style="background:#fef2f2;color:#dc2626;"><i class="fa fa-exclamation-triangle"></i></div>
+                        <div><p class="stat-label">风险预警</p><p class="stat-number" style="color:#dc2626;font-size:24px;" id="stat-risk-alert">2</p></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 趋势+最近处理 -->
+            <!-- 处理概览 -->
             <div class="grid md:grid-cols-5 gap-4 mb-5">
                 <div class="md:col-span-3 glass-card p-4">
                     <div class="flex items-center justify-between mb-3">
@@ -155,6 +165,52 @@
                 <div class="md:col-span-2 glass-card p-4">
                     <h3 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-history" style="color:var(--color-primary);margin-right:6px;"></i>最近处理</h3>
                     <div id="recent-results"><div class="text-text-muted text-sm text-center py-5">暂无处理记录</div></div>
+                </div>
+            </div>
+
+            <!-- 运行日志（默认折叠） -->
+            <div class="glass-card mb-5">
+                <div class="section-header" style="cursor:pointer;" onclick="toggleLogPanel()">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-md flex items-center justify-center" style="background:rgba(13,17,23,0.05);"><i class="fa fa-terminal" style="color:#64748b;font-size:12px;"></i></div>
+                        <div>
+                            <h3 class="text-text-secondary font-semibold text-sm">运行日志</h3>
+                            <p class="text-text-muted text-xs">系统处理日志，默认折叠</p>
+                        </div>
+                    </div>
+                    <i class="fa fa-chevron-down text-text-muted text-xs transition-transform" id="log-toggle-icon" style="transition:transform 0.2s;"></i>
+                </div>
+                <div id="log-panel-content" style="display:none;">
+                    <div style="border-radius:0 0 var(--radius-xl) var(--radius-xl);overflow:hidden;">
+                        <div style="padding:8px 14px;background:#0d1117;border-bottom:1px solid rgba(255,255,255,0.06);">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex gap-0.5" id="log-filter-bar">
+                                        <span class="log-filter-btn active" data-level="all" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.1);font-weight:500;">全部</span>
+                                        <span class="log-filter-btn" data-level="info" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">信息</span>
+                                        <span class="log-filter-btn" data-level="success" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">成功</span>
+                                        <span class="log-filter-btn" data-level="warning" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">警告</span>
+                                        <span class="log-filter-btn" data-level="error" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">错误</span>
+                                    </div>
+                                    <div style="width:1px;height:16px;background:rgba(255,255,255,0.08);"></div>
+                                    <label class="flex items-center gap-1" style="cursor:pointer;user-select:none;">
+                                        <input type="checkbox" id="log-auto-scroll" checked style="accent-color:var(--color-primary);">
+                                        <span style="color:rgba(255,255,255,0.4);font-size:10px;">自动滚动</span>
+                                    </label>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span id="log-count-badge" style="padding:1px 8px;border-radius:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);font-size:10px;">0 条</span>
+                                    <button id="btn-clear-logs" style="padding:3px 10px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.4);font-size:10px;cursor:pointer;transition:all 0.15s;"><i class="fa fa-trash-o"></i> 清空</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="logs-container" style="height:280px;overflow-y:auto;background:#0d1117;padding:10px 14px;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:12px;line-height:1.7;">
+                            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(148,163,184,0.3);font-size:12px;">
+                                <div class="text-center"><i class="fa fa-terminal" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.2;"></i>暂无日志记录</div>
+                            </div>
+                        </div>
+                        <div id="process-progress" class="hidden" style="height:3px;background:linear-gradient(90deg,var(--color-primary-light),var(--color-primary),var(--color-primary-light));background-size:200% 100%;animation:progressSlide 1.5s infinite linear;"></div>
+                    </div>
                 </div>
             </div>
 
@@ -175,6 +231,14 @@
 
         <!-- ===== 页面2：发票台账 ===== -->
         <div id="page-invoices" class="page-content">
+
+            <!-- 摘要看板 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:var(--color-primary-bg);color:var(--color-primary);width:36px;height:36px;font-size:16px;"><i class="fa fa-calculator"></i></div><div><p class="stat-label">发票总额</p><p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt-top">¥0</p></div></div></div>
+                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:var(--color-success-bg);color:var(--color-success);width:36px;height:36px;font-size:16px;"><i class="fa fa-file-text-o"></i></div><div><p class="stat-label">不含税金额</p><p class="text-lg font-bold" style="color:var(--color-success)" id="stat-total-price-top">¥0</p></div></div></div>
+                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:var(--color-warning-bg);color:var(--color-warning);width:36px;height:36px;font-size:16px;"><i class="fa fa-percent"></i></div><div><p class="stat-label">税额合计</p><p class="text-lg font-bold" style="color:var(--color-warning)" id="stat-total-tax-top">¥0</p></div></div></div>
+                <div class="glass-card p-3 float-up"><div class="flex items-center gap-2"><div class="icon-circle" style="background:rgba(236,72,153,0.1);color:var(--color-accent);width:36px;height:36px;font-size:16px;"><i class="fa fa-building"></i></div><div><p class="stat-label">销售方数量</p><p class="text-lg font-bold" style="color:var(--color-accent)" id="stat-seller-cnt-top">0</p></div></div></div>
+            </div>
 
             <!-- 搜索区 -->
             <div class="glass-card overflow-hidden mb-5">
@@ -321,7 +385,7 @@
                     <div class="overflow-x-auto">
                         <table class="data-table" style="margin:0;">
                             <thead><tr>
-                                <th><input type="checkbox" id="select-all-invoices" onclick="toggleSelectAll(this)" style="margin-right:4px;accent-color:var(--color-primary);"></th><th>发票号码</th><th>销售方</th><th>开票日期</th><th>购买方</th><th class="text-right">价税合计</th><th>验真状态</th><th>认证状态</th><th>备注</th><th class="text-center">操作</th>
+                                <th><input type="checkbox" id="select-all-invoices" onclick="toggleSelectAll(this)" style="margin-right:4px;accent-color:var(--color-primary);"></th><th>发票号码</th><th>销售方</th><th>开票日期</th><th class="text-right">价税合计</th><th>验真</th><th>认证</th><th>费用归属</th><th class="text-center">操作</th>
                             </tr></thead>
                             <tbody id="invoices-body"></tbody>
                         </table>
@@ -349,76 +413,7 @@
             </div>
         </div>
 
-        <!-- ===== 页面3：任务中心 ===== -->
-        <div id="page-tasks" class="page-content">
 
-            <!-- 顶部概览 -->
-            <div class="glass-card p-4 mb-5">
-                <div class="flex items-center justify-between flex-wrap gap-3">
-                    <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:var(--color-primary-bg);">
-                                <i class="fa fa-tasks" style="color:var(--color-primary);font-size:16px;"></i>
-                            </div>
-                            <div>
-                                <p class="text-text-primary font-semibold text-sm">任务控制台</p>
-                                <p class="text-text-muted text-xs" id="task-session-label">当前会话 · 未开始</p>
-                            </div>
-                        </div>
-                        <div class="hidden sm:flex items-center gap-3 pl-4 border-l" style="border-color:var(--color-border);">
-                            <div class="text-center"><p class="text-xs text-text-muted">成功</p><p class="text-base font-bold" style="color:var(--color-success)" id="task-stat-success">0</p></div>
-                            <div class="text-center"><p class="text-xs text-text-muted">重复</p><p class="text-base font-bold" style="color:var(--color-warning)" id="task-stat-duplicate">0</p></div>
-                            <div class="text-center"><p class="text-xs text-text-muted">失败</p><p class="text-base font-bold" style="color:var(--color-danger)" id="task-stat-failed">0</p></div>
-                        </div>
-                    </div>
-                    <button id="btn-start-process-top" class="btn-primary btn-primary-sm"><i class="fa fa-play-circle"></i> 开始处理</button>
-                </div>
-            </div>
-
-            <!-- 日志终端 -->
-            <div style="border-radius:var(--radius-xl);overflow:hidden;box-shadow:0 12px 40px rgba(15,23,42,0.25);">
-                <div style="padding:10px 16px;background:#0d1117;border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <div class="flex items-center justify-between flex-wrap gap-2">
-                        <div class="flex items-center gap-2.5">
-                            <div class="flex items-center gap-1.5">
-                                <span style="width:9px;height:9px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
-                                <span style="width:9px;height:9px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>
-                                <span style="width:9px;height:9px;border-radius:50%;background:#10b981;display:inline-block;"></span>
-                            </div>
-                            <span style="color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;"><i class="fa fa-terminal" style="margin-right:5px;"></i>运行日志</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="flex gap-0.5" id="log-filter-bar">
-                                <span class="log-filter-btn active" data-level="all" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.1);font-weight:500;">全部</span>
-                                <span class="log-filter-btn" data-level="info" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">信息</span>
-                                <span class="log-filter-btn" data-level="success" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">成功</span>
-                                <span class="log-filter-btn" data-level="warning" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">警告</span>
-                                <span class="log-filter-btn" data-level="error" style="padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.5);background:transparent;font-weight:500;">错误</span>
-                            </div>
-                            <div style="width:1px;height:16px;background:rgba(255,255,255,0.08);"></div>
-                            <label class="flex items-center gap-1" style="cursor:pointer;user-select:none;">
-                                <input type="checkbox" id="log-auto-scroll" checked style="accent-color:var(--color-primary);">
-                                <span style="color:rgba(255,255,255,0.4);font-size:10px;">自动滚动</span>
-                            </label>
-                            <div style="width:1px;height:16px;background:rgba(255,255,255,0.08);"></div>
-                            <span id="log-count-badge" style="padding:1px 8px;border-radius:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);font-size:10px;">0 条</span>
-                            <button id="btn-clear-logs" style="padding:3px 10px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.4);font-size:10px;cursor:pointer;transition:all 0.15s;">
-                                <i class="fa fa-trash-o"></i> 清空
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div id="logs-container" style="height:calc(100vh - 240px);min-height:360px;overflow-y:auto;background:#0d1117;padding:10px 14px;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:12px;line-height:1.7;">
-                    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(148,163,184,0.3);font-size:12px;">
-                        <div class="text-center"><i class="fa fa-terminal" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.2;"></i>暂无日志记录</div>
-                    </div>
-                </div>
-                <div id="process-progress" class="hidden" style="height:3px;background:linear-gradient(90deg,var(--color-primary-light),var(--color-primary),var(--color-primary-light));background-size:200% 100%;animation:progressSlide 1.5s infinite linear;"></div>
-                <div id="process-progress-label" class="hidden" style="text-align:center;padding:6px;background:#0d1117;border-top:1px solid rgba(255,255,255,0.03);">
-                    <span style="color:rgba(148,163,184,0.4);font-size:11px;"><i class="fa fa-spinner fa-spin-custom"></i> 正在处理发票，请稍候...</span>
-                </div>
-            </div>
-        </div>
 
     </main>
 
@@ -476,57 +471,47 @@
                     <p class="text-sm font-mono text-text-secondary pl-7" id="detail-check-code"></p>
                 </div>
                 <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
-                    <div class="flex items-center gap-2 mb-3"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-shield" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">合规状态</span></div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="flex items-center gap-2 mb-3"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-cog" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">管理与合规</span></div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                         <div>
                             <p class="text-text-muted text-xs mb-1">验真状态</p>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1.5">
                                 <span id="detail-verify-badge"></span>
-                                <button id="btn-verify-invoice" class="px-3 py-1 rounded-lg text-xs font-medium" style="background:var(--color-primary-bg);color:var(--color-primary);" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i> 立即查验</button>
+                                <button id="btn-verify-invoice" class="px-2 py-0.5 rounded text-xs font-medium" style="background:var(--color-primary-bg);color:var(--color-primary);font-size:11px;" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i></button>
                             </div>
-                            <p id="detail-verify-message" class="text-xs mt-1" style="color:var(--color-text-muted);display:none;"></p>
+                            <p id="detail-verify-message" class="text-xs mt-0.5" style="color:var(--color-text-muted);display:none;font-size:10px;"></p>
                         </div>
                         <div>
                             <p class="text-text-muted text-xs mb-1">认证状态</p>
                             <span id="detail-certification-badge"></span>
                         </div>
-                    </div>
-                    <div id="detail-verify-result-area" style="display:none;margin-top:12px;padding:10px;background:#fff;border-radius:8px;border:1px solid var(--color-border-light);">
-                        <p class="text-xs font-semibold text-text-primary mb-2"><i class="fa fa-file-text-o" style="margin-right:4px;"></i>查验结果详情</p>
-                        <div id="detail-verify-result-content" class="text-xs text-text-secondary" style="max-height:200px;overflow-y:auto;"></div>
-                    </div>
-                </div>
-                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
-                    <div class="flex items-center gap-2 mb-3"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-tag" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">费用归属</span></div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <p class="text-text-muted text-xs mb-1">部门</p>
-                            <input type="text" id="detail-department" list="dept-options" class="input-field" placeholder="选择或输入部门" style="font-size:13px;">
+                            <input type="text" id="detail-department" list="dept-options" class="input-field" placeholder="部门" style="font-size:12px;padding:5px 8px;">
                             <datalist id="dept-options"></datalist>
                         </div>
                         <div>
                             <p class="text-text-muted text-xs mb-1">项目</p>
-                            <input type="text" id="detail-project" list="proj-options" class="input-field" placeholder="选择或输入项目" style="font-size:13px;">
+                            <input type="text" id="detail-project" list="proj-options" class="input-field" placeholder="项目" style="font-size:12px;padding:5px 8px;">
                             <datalist id="proj-options"></datalist>
                         </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div>
                             <p class="text-text-muted text-xs mb-1">费用类型</p>
-                            <input type="text" id="detail-expense-type" list="expense-options" class="input-field" placeholder="选择费用类型" style="font-size:13px;">
+                            <input type="text" id="detail-expense-type" list="expense-options" class="input-field" placeholder="费用类型" style="font-size:12px;padding:5px 8px;">
                             <datalist id="expense-options">
-                                <option value="差旅">
-                                <option value="办公">
-                                <option value="福利">
-                                <option value="采购">
-                                <option value="招待">
-                                <option value="交通">
-                                <option value="通讯">
-                                <option value="租赁">
-                                <option value="咨询">
-                                <option value="其他">
+                                <option value="差旅"><option value="办公"><option value="福利"><option value="采购"><option value="招待"><option value="交通"><option value="通讯"><option value="租赁"><option value="咨询"><option value="其他">
                             </datalist>
                         </div>
+                        <div class="col-span-3 flex items-end">
+                            <button id="btn-save-attribution" class="btn-primary btn-primary-sm" style="font-size:11px;padding:5px 14px;"><i class="fa fa-save"></i> 保存归属</button>
+                        </div>
                     </div>
-                    <button id="btn-save-attribution" class="btn-primary btn-primary-sm mt-2" style="font-size:11px;padding:4px 12px;"><i class="fa fa-save"></i> 保存归属</button>
+                    <div id="detail-verify-result-area" style="display:none;margin-top:10px;padding:8px;background:#fff;border-radius:6px;border:1px solid var(--color-border-light);">
+                        <p class="text-xs font-semibold text-text-primary mb-1"><i class="fa fa-file-text-o" style="margin-right:4px;"></i>查验结果详情</p>
+                        <div id="detail-verify-result-content" class="text-xs text-text-secondary" style="max-height:150px;overflow-y:auto;"></div>
+                    </div>
                 </div>
                 <div class="mb-4">
                     <div class="flex items-center gap-2 mb-1.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-sticky-note" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">备注</span></div>

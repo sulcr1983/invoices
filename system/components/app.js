@@ -98,7 +98,20 @@ const API_BASE = '/api';
             });
             if (pageId === 'dashboard') { loadDashboard(); }
             else if (pageId === 'invoices') { loadSellers(); loadInvoices(1); loadDupBadge(); }
-            else if (pageId === 'tasks') { loadLogs(); }
+        }
+
+        function toggleLogPanel() {
+            var content = document.getElementById('log-panel-content');
+            var icon = document.getElementById('log-toggle-icon');
+            if (!content) return;
+            if (content.style.display === 'none') {
+                content.style.display = '';
+                if (icon) icon.style.transform = 'rotate(180deg)';
+                loadLogs();
+            } else {
+                content.style.display = 'none';
+                if (icon) icon.style.transform = '';
+            }
         }
 
         function renderTrendChart(data) {
@@ -160,6 +173,7 @@ const API_BASE = '/api';
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
             document.getElementById('hero-pending-count').textContent = data.directory_status.pending || 0;
+            loadDashboardAlerts();
             loadDeductionAlertCount();
             renderTrendChart(data);
             renderRecentResults(data);
@@ -188,13 +202,40 @@ const API_BASE = '/api';
             var expiring = result.expiring_count || 0;
             var total = expired + expiring;
             var el = document.getElementById('stat-deduction-alert');
-            if (total > 0) {
-                el.textContent = total + ' 张';
-                el.style.color = expired > 0 ? '#dc2626' : '#f59e0b';
-            } else {
-                el.textContent = '0';
-                el.style.color = '#10b981';
+            if (el) {
+                if (total > 0) {
+                    el.textContent = total + ' 张';
+                    el.style.color = expired > 0 ? '#dc2626' : '#f59e0b';
+                } else {
+                    el.textContent = '0';
+                    el.style.color = '#10b981';
+                }
             }
+        }
+
+        async function loadDashboardAlerts() {
+            try {
+                var invResult = await apiRequest('/invoices?limit=1000');
+                var verifyPending = 0, certifyPending = 0;
+                if (invResult && invResult.invoices) {
+                    invResult.invoices.forEach(function(inv) {
+                        if (inv.verify_status === 'unverified') verifyPending++;
+                        if (inv.certification_status === 'unverified' && inv.invoice_type && inv.invoice_type.indexOf('专') >= 0) certifyPending++;
+                    });
+                }
+                var vpEl = document.getElementById('stat-verify-pending');
+                if (vpEl) vpEl.textContent = verifyPending;
+                var cpEl = document.getElementById('stat-certify-pending');
+                if (cpEl) cpEl.textContent = certifyPending;
+            } catch(e) {}
+
+            try {
+                var distResult = await apiRequest('/stats/expense-distribution');
+                if (distResult) {
+                    var raEl = document.getElementById('stat-risk-alert');
+                    if (raEl) raEl.textContent = distResult.risk_count || 0;
+                }
+            } catch(e) {}
         }
 
         async function loadDeductionAlert() {
@@ -425,7 +466,7 @@ const API_BASE = '/api';
         async function loadInvoices(page) {
             invoiceListPage = page;
             var invTbody = document.getElementById('invoices-body');
-            invTbody.innerHTML = '<tr><td colspan="10" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
+            invTbody.innerHTML = '<tr><td colspan="9" class="text-center py-6"><i class="fa fa-spinner fa-spin-custom" style="color:#8b5cf6;font-size:20px;"></i><span class="ml-2 text-text-muted text-sm">加载中...</span></td></tr>';
             var keyword = document.getElementById('search-keyword').value;
             var dateFrom = document.getElementById('search-date-from').value;
             var dateTo = document.getElementById('search-date-to').value;
@@ -450,7 +491,7 @@ const API_BASE = '/api';
             var tbody = document.getElementById('invoices-body');
             tbody.innerHTML = '';
             if (data.invoices.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-10 text-text-muted">暂无匹配的发票记录</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-10 text-text-muted">暂无匹配的发票记录</td></tr>';
             } else {
                 data.invoices.forEach(function(inv) {
                     var tr = document.createElement('tr');
@@ -460,16 +501,23 @@ const API_BASE = '/api';
                     } else if (inv.deduction_status === 'expiring') {
                         deductionTag = ' <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fffbeb;color:#d97706;">剩' + inv.days_remaining + '天</span>';
                     }
+                    var attributionTags = '';
+                    if (inv.department || inv.project || inv.expense_type) {
+                        var tags = [];
+                        if (inv.department) tags.push('<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:var(--color-primary-bg);color:var(--color-primary);margin-right:2px;">' + escapeHtml(inv.department) + '</span>');
+                        if (inv.project) tags.push('<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#ecfdf5;color:#059669;margin-right:2px;">' + escapeHtml(inv.project) + '</span>');
+                        if (inv.expense_type) tags.push('<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#fffbeb;color:#d97706;">' + escapeHtml(inv.expense_type) + '</span>');
+                        attributionTags = tags.join('');
+                    }
                     var isChecked = selectedInvoices.has(inv.invoice_num) ? 'checked' : '';
                     tr.innerHTML = '<td><input type="checkbox" class="invoice-checkbox" data-invoice="' + escapeHtml(inv.invoice_num) + '" ' + isChecked + ' onchange="toggleInvoiceSelect(this)" style="accent-color:var(--color-primary);"></td>' +
                         '<td class="font-mono text-xs text-text-muted">' + (inv.risk_flags ? '<span style="cursor:pointer;margin-right:4px;" title="' + escapeHtml(getRiskLabels(inv.risk_flags)) + '"><i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:12px;"></i></span>' : '') + escapeHtml(inv.invoice_num) + deductionTag + '</td>' +
                         '<td class="font-medium text-text-primary">' + escapeHtml(inv.seller) + '</td>' +
                         '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
-                        '<td class="text-text-primary">' + escapeHtml(inv.buyer) + '</td>' +
                         '<td class="text-right font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</td>' +
                         '<td>' + renderVerifyBadge(inv.verify_status, inv.invoice_num) + '</td>' +
                         '<td>' + renderCertBadge(inv.certification_status) + '</td>' +
-                        '<td class="text-text-muted max-w-[120px] truncate">' + escapeHtml(inv.remark) + '</td>' +
+                        '<td>' + (attributionTags || '<span class="text-text-muted text-xs">-</span>') + '</td>' +
                         '<td><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button></td>';
                     tbody.appendChild(tr);
                 });
@@ -926,6 +974,14 @@ const API_BASE = '/api';
             document.getElementById('stat-total-price').textContent = formatMoney(result.total_price);
             document.getElementById('stat-total-tax').textContent = formatMoney(result.total_tax);
             document.getElementById('stat-seller-cnt').textContent = result.seller_cnt || 0;
+            var topAmt = document.getElementById('stat-total-amt-top');
+            var topPrice = document.getElementById('stat-total-price-top');
+            var topTax = document.getElementById('stat-total-tax-top');
+            var topSeller = document.getElementById('stat-seller-cnt-top');
+            if (topAmt) topAmt.textContent = formatMoney(result.total_amt);
+            if (topPrice) topPrice.textContent = formatMoney(result.total_price);
+            if (topTax) topTax.textContent = formatMoney(result.total_tax);
+            if (topSeller) topSeller.textContent = result.seller_cnt || 0;
             renderSellerRanking(result.top_sellers || []);
             renderMonthlyAmountChart(result.monthly_summary || []);
             loadInputTaxSummary();
