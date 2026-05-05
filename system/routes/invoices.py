@@ -185,25 +185,81 @@ def batch_certify_invoices():
 @invoices_bp.route('/api/invoices/<invoice_num>/verify', methods=['POST'])
 def verify_single_invoice(invoice_num):
     try:
-        from ..core.verify import verify_invoice_mock, format_verify_result
+        from ..core.verify import (
+            verify_invoice_baidu, verify_invoice_mock,
+            is_verify_available, format_verify_result
+        )
+        from ..config import VERIFY_ENABLED, VERIFY_COST_PER_CALL
+
         record = db_manager.get_record_by_invoice_num(invoice_num)
         if not record:
             return {'status': 'error', 'message': '发票不存在'}, 404
 
-        result = verify_invoice_mock(record)
-        if result.get('status') != 'unverified':
-            db_manager.update_verify_status(
-                invoice_num,
-                result.get('status'),
-                format_verify_result(result)
-            )
+        if record.get('verify_status') not in ('unverified', '', None):
+            return {
+                'status': 'success',
+                'data': {
+                    'invoice_num': invoice_num,
+                    'verify_status': record.get('verify_status'),
+                    'verify_message': VERIFY_STATUS_LABELS.get(record.get('verify_status'), '已查验'),
+                    'already_verified': True
+                }
+            }
+
+        if not VERIFY_ENABLED:
+            return {
+                'status': 'error',
+                'message': '验真功能未启用，请在 .env 中设置 VERIFY_ENABLED=true'
+            }, 403
+
+        if not is_verify_available():
+            return {
+                'status': 'error',
+                'message': '百度API配置不完整，请检查 .env 中的 BAIDU_API_KEY 和 BAIDU_SECRET_KEY'
+            }, 403
+
+        result = verify_invoice_baidu(record)
+
+        db_manager.update_verify_status(
+            invoice_num,
+            result.get('status'),
+            format_verify_result(result)
+        )
 
         return {
             'status': 'success',
             'data': {
                 'invoice_num': invoice_num,
                 'verify_status': result.get('status'),
-                'verify_message': result.get('message', '')
+                'verify_message': result.get('message', ''),
+                'already_verified': False,
+                'cost': VERIFY_COST_PER_CALL
+            }
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
+VERIFY_STATUS_LABELS = {
+    'unverified': '待查验',
+    'success': '查验通过',
+    'failed': '查验失败',
+    'voided': '已作废',
+    'red': '红冲发票',
+}
+
+
+@invoices_bp.route('/api/verify/config', methods=['GET'])
+def get_verify_config():
+    try:
+        from ..core.verify import is_verify_available
+        from ..config import VERIFY_ENABLED, VERIFY_COST_PER_CALL
+        return {
+            'status': 'success',
+            'data': {
+                'enabled': VERIFY_ENABLED,
+                'available': is_verify_available(),
+                'cost_per_call': VERIFY_COST_PER_CALL
             }
         }
     except Exception as e:

@@ -34,6 +34,9 @@ BAIDU_API_KEY = os.environ.get("BAIDU_API_KEY", "")
 BAIDU_SECRET_KEY = os.environ.get("BAIDU_SECRET_KEY", "")
 BAIDU_OCR_TYPE = os.environ.get("BAIDU_OCR_TYPE", "vat_invoice")
 
+VERIFY_COST_PER_CALL = float(os.environ.get("VERIFY_COST_PER_CALL", "0.25"))
+VERIFY_ENABLED = os.environ.get("VERIFY_ENABLED", "true").lower() == "true"
+
 INVOICE_FIELD_NAMES = {
     "invoice_num": "发票号码",
     "seller": "销售方名称",

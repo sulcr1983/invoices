@@ -465,13 +465,18 @@
                             <p class="text-text-muted text-xs mb-1">验真状态</p>
                             <div class="flex items-center gap-2">
                                 <span id="detail-verify-badge"></span>
-                                <button id="btn-verify-invoice" class="px-3 py-1 rounded-lg text-xs font-medium cursor-not-allowed opacity-50" style="background:#e2e8f0;color:#94a3b8;" disabled title="验真接口待配置"><i class="fa fa-search"></i> 立即查验</button>
+                                <button id="btn-verify-invoice" class="px-3 py-1 rounded-lg text-xs font-medium" style="background:var(--color-primary-bg);color:var(--color-primary);" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i> 立即查验</button>
                             </div>
+                            <p id="detail-verify-message" class="text-xs mt-1" style="color:var(--color-text-muted);display:none;"></p>
                         </div>
                         <div>
                             <p class="text-text-muted text-xs mb-1">认证状态</p>
                             <span id="detail-certification-badge"></span>
                         </div>
+                    </div>
+                    <div id="detail-verify-result-area" style="display:none;margin-top:12px;padding:10px;background:#fff;border-radius:8px;border:1px solid var(--color-border-light);">
+                        <p class="text-xs font-semibold text-text-primary mb-2"><i class="fa fa-file-text-o" style="margin-right:4px;"></i>查验结果详情</p>
+                        <div id="detail-verify-result-content" class="text-xs text-text-secondary" style="max-height:200px;overflow-y:auto;"></div>
                     </div>
                 </div>
                 <div class="mb-4">
@@ -495,6 +500,39 @@
                 <div class="text-text-secondary text-sm mb-4" id="success-message"></div>
                 <div class="grid grid-cols-3 gap-2 mb-4" id="success-stats"></div>
                 <button onclick="closeSuccessModal()" class="btn-primary btn-primary-sm w-full">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 验真确认弹窗 -->
+    <div class="modal-overlay" id="verify-confirm-modal">
+        <div class="modal-box" style="max-width:420px;">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:#fef3c7;"><i class="fa fa-exclamation-triangle" style="color:#f59e0b;font-size:18px;"></i></div>
+                    <div>
+                        <h3 class="text-text-primary font-bold text-base">确认发票验真</h3>
+                        <p class="text-text-muted text-xs">此操作将调用百度验真接口</p>
+                    </div>
+                </div>
+                <div style="background:var(--color-bg-subtle);border-radius:8px;padding:12px;margin-bottom:16px;">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-text-secondary text-sm">发票号码</span>
+                        <span class="text-text-primary font-mono text-sm font-semibold" id="verify-confirm-invoice-num"></span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-text-secondary text-sm">本次费用</span>
+                        <span class="font-bold text-sm" style="color:#ef4444;" id="verify-confirm-cost"></span>
+                    </div>
+                </div>
+                <label class="flex items-center gap-2 mb-4 cursor-pointer" style="user-select:none;">
+                    <input type="checkbox" id="verify-no-remind" style="accent-color:var(--color-primary);width:16px;height:16px;">
+                    <span class="text-text-secondary text-xs">不再提示费用确认（后续直接验真）</span>
+                </label>
+                <div class="flex gap-2">
+                    <button onclick="closeVerifyConfirm()" class="btn-ghost flex-1">取消</button>
+                    <button onclick="confirmVerify()" class="btn-primary btn-primary-sm flex-1"><i class="fa fa-check"></i> 确认验真</button>
+                </div>
             </div>
         </div>
     </div>

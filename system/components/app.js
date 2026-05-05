@@ -299,14 +299,109 @@ const API_BASE = '/api';
             'certified': {label: '已认证', bg: '#ecfdf5', color: '#10b981'}
         };
 
-        function renderVerifyBadge(status) {
+        function renderVerifyBadge(status, invoiceNum) {
             var cfg = verifyStatusConfig[status] || verifyStatusConfig['unverified'];
-            return '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:' + cfg.bg + ';color:' + cfg.color + ';">' + cfg.label + '</span>';
+            var clickable = (status === 'unverified') ? ' style="cursor:pointer;" onclick="handleVerifyFromList(\'' + (invoiceNum || '') + '\')" title="点击验真（¥' + verifyConfig.cost.toFixed(2) + '/次）"' : '';
+            return '<span' + clickable + ' style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:' + cfg.bg + ';color:' + cfg.color + ';' + (status === 'unverified' ? 'text-decoration:underline dotted;' : '') + '">' + cfg.label + '</span>';
         }
 
         function renderCertBadge(status) {
             var cfg = certStatusConfig[status] || certStatusConfig['unverified'];
             return '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:' + cfg.bg + ';color:' + cfg.color + ';">' + cfg.label + '</span>';
+        }
+
+        var verifyConfig = {enabled: false, available: false, cost: 0.25};
+        var verifyNoRemind = localStorage.getItem('verify_no_remind') === 'true';
+        var pendingVerifyInvoiceNum = null;
+
+        async function loadVerifyConfig() {
+            var result = await apiRequest('/verify/config');
+            if (result) {
+                verifyConfig.enabled = result.enabled;
+                verifyConfig.available = result.available;
+                verifyConfig.cost = result.cost_per_call;
+            }
+        }
+
+        function showVerifyConfirm(invoiceNum) {
+            pendingVerifyInvoiceNum = invoiceNum;
+            document.getElementById('verify-confirm-invoice-num').textContent = invoiceNum;
+            document.getElementById('verify-confirm-cost').textContent = '¥' + verifyConfig.cost.toFixed(2) + '/次';
+            document.getElementById('verify-no-remind').checked = false;
+            document.getElementById('verify-confirm-modal').classList.add('active');
+        }
+
+        function closeVerifyConfirm() {
+            document.getElementById('verify-confirm-modal').classList.remove('active');
+            pendingVerifyInvoiceNum = null;
+        }
+
+        async function confirmVerify() {
+            var noRemind = document.getElementById('verify-no-remind').checked;
+            if (noRemind) {
+                localStorage.setItem('verify_no_remind', 'true');
+                verifyNoRemind = true;
+            }
+            closeVerifyConfirm();
+            if (pendingVerifyInvoiceNum) {
+                await doVerifyInvoice(pendingVerifyInvoiceNum);
+            }
+        }
+
+        async function handleVerifyFromList(invoiceNum) {
+            if (!verifyConfig.enabled || !verifyConfig.available) {
+                showToast('验真功能未启用或API未配置', 'error');
+                return;
+            }
+            if (verifyNoRemind) {
+                await doVerifyInvoice(invoiceNum);
+            } else {
+                showVerifyConfirm(invoiceNum);
+            }
+        }
+
+        async function handleVerifyFromDetail() {
+            var invoiceNum = document.getElementById('btn-verify-invoice').dataset.invoiceNum;
+            if (!invoiceNum) return;
+            if (!verifyConfig.enabled || !verifyConfig.available) {
+                showToast('验真功能未启用或API未配置', 'error');
+                return;
+            }
+            if (verifyNoRemind) {
+                await doVerifyInvoice(invoiceNum);
+            } else {
+                showVerifyConfirm(invoiceNum);
+            }
+        }
+
+        async function doVerifyInvoice(invoiceNum) {
+            var btn = document.getElementById('btn-verify-invoice');
+            var originalText = '';
+            if (btn && btn.dataset.invoiceNum === invoiceNum) {
+                originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fa fa-spinner fa-spin-custom"></i> 查验中...';
+                btn.disabled = true;
+            }
+            try {
+                var result = await apiRequest('/invoices/' + invoiceNum + '/verify', 'POST');
+                if (result) {
+                    if (result.already_verified) {
+                        showToast('该发票已查验过，无需重复查验', 'info');
+                    } else {
+                        showToast(result.verify_message || '查验完成', result.verify_status === 'success' ? 'success' : 'error');
+                    }
+                    loadInvoices(invoiceListPage);
+                    var detailModal = document.getElementById('detail-modal');
+                    if (detailModal && detailModal.classList.contains('active')) {
+                        showInvoiceDetail(invoiceNum);
+                    }
+                }
+            } finally {
+                if (btn && btn.dataset.invoiceNum === invoiceNum) {
+                    btn.innerHTML = originalText || '<i class="fa fa-search"></i> 立即查验';
+                    btn.disabled = false;
+                }
+            }
         }
 
         async function loadInvoices(page) {
@@ -354,7 +449,7 @@ const API_BASE = '/api';
                         '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
                         '<td class="text-text-primary">' + escapeHtml(inv.buyer) + '</td>' +
                         '<td class="text-right font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</td>' +
-                        '<td>' + renderVerifyBadge(inv.verify_status) + '</td>' +
+                        '<td>' + renderVerifyBadge(inv.verify_status, inv.invoice_num) + '</td>' +
                         '<td>' + renderCertBadge(inv.certification_status) + '</td>' +
                         '<td class="text-text-muted max-w-[120px] truncate">' + escapeHtml(inv.remark) + '</td>' +
                         '<td><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button></td>';
@@ -414,6 +509,64 @@ const API_BASE = '/api';
             document.getElementById('btn-save-remark').dataset.invoiceNum = data.invoice_num;
             var verifyBadge = document.getElementById('detail-verify-badge');
             if (verifyBadge) verifyBadge.innerHTML = renderVerifyBadge(data.verify_status || 'unverified');
+            var verifyBtn = document.getElementById('btn-verify-invoice');
+            if (verifyBtn) {
+                verifyBtn.dataset.invoiceNum = data.invoice_num || '';
+                if (data.verify_status && data.verify_status !== 'unverified') {
+                    verifyBtn.style.display = 'none';
+                } else {
+                    verifyBtn.style.display = '';
+                    if (!verifyConfig.enabled || !verifyConfig.available) {
+                        verifyBtn.disabled = true;
+                        verifyBtn.style.opacity = '0.5';
+                        verifyBtn.style.cursor = 'not-allowed';
+                        verifyBtn.title = '验真接口待配置';
+                    } else {
+                        verifyBtn.disabled = false;
+                        verifyBtn.style.opacity = '1';
+                        verifyBtn.style.cursor = 'pointer';
+                        verifyBtn.title = '点击验真（¥' + verifyConfig.cost.toFixed(2) + '/次）';
+                    }
+                }
+            }
+            var verifyMsg = document.getElementById('detail-verify-message');
+            if (verifyMsg) {
+                if (data.verify_time) {
+                    verifyMsg.textContent = '查验时间: ' + data.verify_time;
+                    verifyMsg.style.display = '';
+                } else {
+                    verifyMsg.style.display = 'none';
+                }
+            }
+            var verifyResultArea = document.getElementById('detail-verify-result-area');
+            var verifyResultContent = document.getElementById('detail-verify-result-content');
+            if (verifyResultArea && verifyResultContent) {
+                if (data.verify_result && data.verify_status && data.verify_status !== 'unverified') {
+                    try {
+                        var detail = typeof data.verify_result === 'string' ? JSON.parse(data.verify_result) : data.verify_result;
+                        var html = '<table class="data-table" style="font-size:11px;"><tbody>';
+                        var fields = {
+                            'VerifyMessage': '查验结果', 'VerifyFrequency': '查验次数',
+                            'InvalidSign': '作废标志', 'InvoiceType': '发票类型',
+                            'SellerName': '销售方名称', 'SellerRegisterNum': '销售方税号',
+                            'TotalAmount': '合计金额', 'TotalTax': '合计税额',
+                            'AmountInFiguers': '价税合计'
+                        };
+                        for (var key in fields) {
+                            if (detail[key] !== undefined && detail[key] !== '') {
+                                html += '<tr><td class="text-text-muted" style="white-space:nowrap;">' + fields[key] + '</td><td class="text-text-primary font-medium">' + escapeHtml(String(detail[key])) + '</td></tr>';
+                            }
+                        }
+                        html += '</tbody></table>';
+                        verifyResultContent.innerHTML = html;
+                        verifyResultArea.style.display = '';
+                    } catch (e) {
+                        verifyResultArea.style.display = 'none';
+                    }
+                } else {
+                    verifyResultArea.style.display = 'none';
+                }
+            }
             var certBadge = document.getElementById('detail-certification-badge');
             if (certBadge) certBadge.innerHTML = renderCertBadge(data.deduction_status || 'unverified');
             var viewBtn = document.getElementById('btn-view-original');
@@ -909,6 +1062,7 @@ const API_BASE = '/api';
                 if (btn) { showInvoiceDetail(btn.dataset.invoice); }
             });
             initUploadZone();
+            loadVerifyConfig();
 
             // 日志级别过滤
             document.getElementById('log-filter-bar').addEventListener('click', function(e) {
