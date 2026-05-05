@@ -86,7 +86,7 @@ const API_BASE = '/api';
         function switchPage(pageId) {
             currentPage = pageId;
             document.querySelectorAll('.page-content').forEach(function(p) { p.classList.remove('active'); });
-            const target = document.getElementById('page-' + pageId);
+            var target = document.getElementById('page-' + pageId);
             if (target) {
                 target.classList.add('active');
                 target.style.animation = 'none';
@@ -99,6 +99,19 @@ const API_BASE = '/api';
             if (pageId === 'dashboard') { loadDashboard(); }
             else if (pageId === 'invoices') { loadSellers(); loadInvoices(1); loadDupBadge(); }
             else if (pageId === 'stats') { loadStatsSummary(); }
+        }
+
+        function toggleAdvSearch() {
+            var area = document.getElementById('advanced-search-area');
+            var icon = document.getElementById('adv-search-icon');
+            if (!area) return;
+            if (area.style.display === 'none') {
+                area.style.display = '';
+                if (icon) icon.className = 'fa fa-angle-up';
+            } else {
+                area.style.display = 'none';
+                if (icon) icon.className = 'fa fa-angle-down';
+            }
         }
 
         function toggleLogPanel() {
@@ -155,9 +168,20 @@ const API_BASE = '/api';
             const recent = invoices.slice(0, 3);
             let html = '';
             recent.forEach(function(inv) {
+                var statusTag = '';
+                if (inv.verify_status === 'success') {
+                    statusTag = '<span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;background:#ecfdf5;color:#059669;">已验真</span>';
+                } else if (inv.verify_status === 'failed' || inv.verify_status === 'voided') {
+                    statusTag = '<span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;background:#fef2f2;color:#dc2626;">异常</span>';
+                } else if (inv.risk_flags) {
+                    statusTag = '<span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;background:#fffbeb;color:#d97706;">风险</span>';
+                } else {
+                    statusTag = '<span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;background:#f1f5f9;color:#94a3b8;">待处理</span>';
+                }
                 html += '<div class="result-card flex items-center gap-3 border-b border-border-light last:border-b-0">' +
                     '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#f5f3ff;"><i class="fa fa-file-text-o" style="color:#6366f1;font-size:14px;"></i></div>' +
                     '<div class="flex-1 min-w-0"><p class="text-sm font-medium text-text-primary truncate">' + escapeHtml(inv.seller) + '</p><p class="text-xs text-text-muted truncate">' + escapeHtml(inv.invoice_num) + ' · ' + escapeHtml(inv.date) + '</p></div>' +
+                    statusTag +
                     '<span class="text-sm font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</span></div>';
             });
             container.innerHTML = html;
@@ -210,6 +234,10 @@ const API_BASE = '/api';
                 if (vpEl) vpEl.textContent = verifyPending;
                 var cpEl = document.getElementById('stat-certify-pending');
                 if (cpEl) cpEl.textContent = certifyPending;
+                var todoVerify = document.getElementById('todo-verify');
+                if (todoVerify) todoVerify.textContent = verifyPending + ' 张待验真';
+                var todoCertify = document.getElementById('todo-certify');
+                if (todoCertify) todoCertify.textContent = certifyPending + ' 张待认证';
             } catch(e) {}
 
             try {
@@ -217,6 +245,11 @@ const API_BASE = '/api';
                 if (distResult) {
                     var raEl = document.getElementById('stat-risk-alert');
                     if (raEl) raEl.textContent = distResult.risk_count || 0;
+                    var todoRisk = document.getElementById('todo-risk');
+                    if (todoRisk) todoRisk.textContent = (distResult.risk_count || 0) + ' 条风险预警';
+                    var todoSummary = document.getElementById('todo-summary');
+                    var total = (parseInt(document.getElementById('stat-verify-pending').textContent) || 0) + (parseInt(document.getElementById('stat-certify-pending').textContent) || 0) + (distResult.risk_count || 0);
+                    if (todoSummary) todoSummary.textContent = total > 0 ? '共 ' + total + ' 项待处理' : '暂无待办事项';
                 }
             } catch(e) {}
         }
@@ -280,12 +313,15 @@ const API_BASE = '/api';
 
         function updateBatchCertifyButton() {
             var btn = document.getElementById('btn-batch-certify');
+            var btnAttrib = document.getElementById('btn-batch-attribution');
             if (!btn) return;
             if (selectedInvoices.size > 0) {
                 btn.style.display = '';
                 btn.innerHTML = '<i class="fa fa-check-circle-o"></i> 批量标记已认证 (' + selectedInvoices.size + ')';
+                if (btnAttrib) { btnAttrib.style.display = ''; btnAttrib.innerHTML = '<i class="fa fa-tag"></i> 批量设置归属 (' + selectedInvoices.size + ')'; }
             } else {
                 btn.style.display = 'none';
+                if (btnAttrib) btnAttrib.style.display = 'none';
             }
         }
 
@@ -308,6 +344,39 @@ const API_BASE = '/api';
                 loadInvoices(invoiceListPage);
                 updateBatchCertifyButton();
             }
+        }
+
+        function showBatchAttributionModal() {
+            if (selectedInvoices.size === 0) return;
+            document.getElementById('batch-attrib-count').textContent = selectedInvoices.size;
+            document.getElementById('batch-dept').value = '';
+            document.getElementById('batch-project').value = '';
+            document.getElementById('batch-expense-type').value = '';
+            document.getElementById('batch-attribution-modal').classList.add('show');
+        }
+
+        function closeBatchAttributionModal() {
+            document.getElementById('batch-attribution-modal').classList.remove('show');
+        }
+
+        async function doBatchAttribution() {
+            var dept = document.getElementById('batch-dept').value;
+            var proj = document.getElementById('batch-project').value;
+            var exp = document.getElementById('batch-expense-type').value;
+            if (!dept && !proj && !exp) { showToast('请至少填写一项归属信息', 'warning'); return; }
+            var nums = Array.from(selectedInvoices);
+            var success = 0;
+            for (var i = 0; i < nums.length; i++) {
+                var result = await apiRequest('/invoices/' + encodeURIComponent(nums[i]) + '/attribution', 'PUT', {
+                    department: dept, project: proj, expense_type: exp
+                });
+                if (result) success++;
+            }
+            closeBatchAttributionModal();
+            showToast('已为 ' + success + ' 张发票设置归属', 'success');
+            selectedInvoices.clear();
+            loadInvoices(invoiceListPage);
+            updateBatchCertifyButton();
         }
 
         var verifyStatusConfig = {
@@ -335,8 +404,13 @@ const API_BASE = '/api';
         }
 
         var riskFlagLabelsMap = {
-            'high_amount': '大额预警',
-            'split_suspicion': '拆票预警'
+            'high_amount': '单张大额',
+            'split_suspicion': '疑似拆票'
+        };
+
+        var riskFlagDescMap = {
+            'high_amount': '单张发票金额超过10万元，需关注审批流程',
+            'split_suspicion': '同一销售方短期内多张开票，可能存在拆分避审'
         };
 
         function getRiskLabels(riskFlags) {
@@ -346,10 +420,18 @@ const API_BASE = '/api';
             }).join('；');
         }
 
+        function getRiskDesc(riskFlags) {
+            if (!riskFlags) return '';
+            return riskFlags.split(',').filter(function(f) { return f.trim(); }).map(function(f) {
+                return riskFlagDescMap[f.trim()] || '';
+            }).filter(function(d) { return d; }).join('；');
+        }
+
         function renderRiskBadge(riskFlags) {
             if (!riskFlags) return '';
             var labels = getRiskLabels(riskFlags);
-            return '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:#fef2f2;color:#dc2626;"><i class="fa fa-exclamation-triangle" style="font-size:10px;"></i>' + escapeHtml(labels) + '</span>';
+            var desc = getRiskDesc(riskFlags);
+            return '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:#fef2f2;color:#dc2626;cursor:help;" title="' + escapeHtml(desc) + '"><i class="fa fa-exclamation-triangle" style="font-size:10px;"></i>' + escapeHtml(labels) + '</span>';
         }
 
         var verifyConfig = {enabled: false, available: false, cost: 0.25};
@@ -501,7 +583,9 @@ const API_BASE = '/api';
                         '<td>' + renderVerifyBadge(inv.verify_status, inv.invoice_num) + '</td>' +
                         '<td>' + renderCertBadge(inv.certification_status) + '</td>' +
                         '<td>' + (attributionTags || '<span class="text-text-muted text-xs">-</span>') + '</td>' +
-                        '<td><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button></td>';
+                        '<td class="text-center"><div class="inline-flex items-center gap-1"><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button>' +
+                        (inv.verify_status === 'unverified' && verifyConfig.enabled ? '<button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="btn-quick-verify" style="display:none;font-size:11px;color:#ef4444;background:none;border:none;cursor:pointer;padding:2px 4px;" title="快速验真"><i class="fa fa-search"></i></button>' : '') +
+                        '</div></td>';
                     tbody.appendChild(tr);
                 });
             }
@@ -921,12 +1005,38 @@ const API_BASE = '/api';
             tbody.innerHTML = html;
         }
 
+        var statsPeriod = 'month';
+
+        function switchStatsPeriod(period, btn) {
+            statsPeriod = period;
+            document.querySelectorAll('.stats-period-btn').forEach(function(b) { b.classList.remove('active'); });
+            if (btn) btn.classList.add('active');
+            var labels = {'month':'本月数据','quarter':'本季度数据','year':'本年度数据','all':'全部数据'};
+            var labelEl = document.getElementById('stats-period-label');
+            if (labelEl) labelEl.textContent = labels[period] || '';
+            loadStatsSummary();
+        }
+
+        function getStatsDateRange() {
+            var now = new Date();
+            var y = now.getFullYear();
+            var m = now.getMonth();
+            if (statsPeriod === 'month') {
+                return {from: y + '-' + String(m+1).padStart(2,'0') + '-01', to: ''};
+            } else if (statsPeriod === 'quarter') {
+                var qStart = Math.floor(m / 3) * 3;
+                return {from: y + '-' + String(qStart+1).padStart(2,'0') + '-01', to: ''};
+            } else if (statsPeriod === 'year') {
+                return {from: y + '-01-01', to: ''};
+            }
+            return {from: '', to: ''};
+        }
+
         async function loadStatsSummary() {
-            var dateFrom = document.getElementById('search-date-from').value;
-            var dateTo = document.getElementById('search-date-to').value;
+            var range = getStatsDateRange();
             var params = [];
-            if (dateFrom) params.push('date_from=' + dateFrom);
-            if (dateTo) params.push('date_to=' + dateTo);
+            if (range.from) params.push('date_from=' + range.from);
+            if (range.to) params.push('date_to=' + range.to);
             var url = '/stats/summary' + (params.length ? '?' + params.join('&') : '');
             var result = await apiRequest(url);
             if (!result) return;
@@ -1082,11 +1192,12 @@ const API_BASE = '/api';
                 riskCountEl.textContent = result.risk_count + ' 条预警';
                 var html = '';
                 (result.risk_invoices || []).forEach(function(inv) {
+                    var riskDesc = getRiskDesc(inv.risk_flags || (inv.risk_labels && inv.risk_labels.length > 0 ? 'high_amount' : ''));
                     html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--color-border-light);">';
                     html += '<i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:14px;flex-shrink:0;"></i>';
                     html += '<div style="flex:1;min-width:0;">';
                     html += '<div class="flex items-center gap-2"><span class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + '</span><span class="text-sm text-text-primary">' + escapeHtml(inv.seller) + '</span></div>';
-                    html += '<div class="text-xs text-text-muted">' + (inv.risk_labels || []).join('；') + ' · ¥' + formatMoney(inv.total_amount) + '</div>';
+                    html += '<div class="text-xs text-text-muted">' + (inv.risk_labels || []).join('；') + ' · ¥' + formatMoney(inv.total_amount) + (riskDesc ? ' · ' + escapeHtml(riskDesc) : '') + '</div>';
                     html += '</div></div>';
                 });
                 riskListEl.innerHTML = html;
@@ -1168,7 +1279,23 @@ const API_BASE = '/api';
             });
             document.getElementById('invoices-body').addEventListener('click', function(e) {
                 var btn = e.target.closest('.btn-detail');
-                if (btn) { showInvoiceDetail(btn.dataset.invoice); }
+                if (btn) { showInvoiceDetail(btn.dataset.invoice); return; }
+                var qvBtn = e.target.closest('.btn-quick-verify');
+                if (qvBtn) { handleVerifyFromList(qvBtn.dataset.invoice); }
+            });
+            document.getElementById('invoices-body').addEventListener('mouseover', function(e) {
+                var row = e.target.closest('tr');
+                if (row) {
+                    var qv = row.querySelector('.btn-quick-verify');
+                    if (qv) qv.style.display = '';
+                }
+            });
+            document.getElementById('invoices-body').addEventListener('mouseout', function(e) {
+                var row = e.target.closest('tr');
+                if (row) {
+                    var qv = row.querySelector('.btn-quick-verify');
+                    if (qv) qv.style.display = 'none';
+                }
             });
             initUploadZone();
             loadVerifyConfig();

@@ -498,6 +498,21 @@ select.input-field {
 }
 
 /* --- 响应式 --- */
+.stats-period-btn {
+    padding: 5px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border-light);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.stats-period-btn:hover { color: var(--color-primary); border-color: var(--color-primary-light); }
+.stats-period-btn.active { color: #fff; background: var(--color-primary); border-color: var(--color-primary); }
+
+/* --- 响应式 --- */
 @media (max-width: 768px) {
     .stat-number { font-size: 22px; }
     .btn-primary { padding: 10px 22px; font-size: 14px; }
