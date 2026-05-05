@@ -6,5 +6,6 @@ RECORD_COLUMNS = [
     'file_md5', 'sync_status', 'push_status',
     'retry_count', 'last_error', 'process_time', 'error_type',
     'verify_status', 'verify_time', 'verify_result',
-    'deduction_status', 'certification_date'
+    'deduction_status', 'certification_date',
+    'department', 'project', 'expense_type', 'risk_flags'
 ]

@@ -280,6 +280,23 @@
                     </div>
                     <div id="input-tax-detail-table"></div>
                 </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <div class="glass-card p-4">
+                        <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-pie-chart" style="color:var(--color-primary);margin-right:5px;"></i>部门费用分布</h4>
+                        <div id="dept-distribution-chart" style="height:220px;"></div>
+                    </div>
+                    <div class="glass-card p-4">
+                        <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-bar-chart" style="color:var(--color-primary);margin-right:5px;"></i>费用类型分布</h4>
+                        <div id="expense-type-chart" style="height:220px;"></div>
+                    </div>
+                </div>
+                <div class="glass-card p-4 mt-3" id="risk-alert-section" style="display:none;">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-exclamation-triangle" style="color:#ef4444;margin-right:5px;"></i>风险预警</h4>
+                        <span class="text-xs font-bold" style="color:#ef4444;" id="risk-alert-count"></span>
+                    </div>
+                    <div id="risk-alert-list"></div>
+                </div>
             </div>
 
             <!-- 列表区 -->
@@ -478,6 +495,38 @@
                         <p class="text-xs font-semibold text-text-primary mb-2"><i class="fa fa-file-text-o" style="margin-right:4px;"></i>查验结果详情</p>
                         <div id="detail-verify-result-content" class="text-xs text-text-secondary" style="max-height:200px;overflow-y:auto;"></div>
                     </div>
+                </div>
+                <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:14px;margin-bottom:4px;">
+                    <div class="flex items-center gap-2 mb-3"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-tag" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">费用归属</span></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <p class="text-text-muted text-xs mb-1">部门</p>
+                            <input type="text" id="detail-department" list="dept-options" class="input-field" placeholder="选择或输入部门" style="font-size:13px;">
+                            <datalist id="dept-options"></datalist>
+                        </div>
+                        <div>
+                            <p class="text-text-muted text-xs mb-1">项目</p>
+                            <input type="text" id="detail-project" list="proj-options" class="input-field" placeholder="选择或输入项目" style="font-size:13px;">
+                            <datalist id="proj-options"></datalist>
+                        </div>
+                        <div>
+                            <p class="text-text-muted text-xs mb-1">费用类型</p>
+                            <input type="text" id="detail-expense-type" list="expense-options" class="input-field" placeholder="选择费用类型" style="font-size:13px;">
+                            <datalist id="expense-options">
+                                <option value="差旅">
+                                <option value="办公">
+                                <option value="福利">
+                                <option value="采购">
+                                <option value="招待">
+                                <option value="交通">
+                                <option value="通讯">
+                                <option value="租赁">
+                                <option value="咨询">
+                                <option value="其他">
+                            </datalist>
+                        </div>
+                    </div>
+                    <button id="btn-save-attribution" class="btn-primary btn-primary-sm mt-2" style="font-size:11px;padding:4px 12px;"><i class="fa fa-save"></i> 保存归属</button>
                 </div>
                 <div class="mb-4">
                     <div class="flex items-center gap-2 mb-1.5"><div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--color-primary-bg);"><i class="fa fa-sticky-note" style="color:var(--color-primary);font-size:10px;"></i></div><span class="text-text-primary font-semibold text-sm">备注</span></div>

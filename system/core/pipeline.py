@@ -13,6 +13,7 @@ from ..services import (
 )
 from ..extractor import calculate_file_md5
 from .verify import verify_invoice_mock
+from .risk_checker import run_risk_check
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +226,14 @@ def run_pipeline():
                         record.get('invoice_num', ''),
                         verify_result.get('status'),
                         format_verify_result(verify_result)
+                    )
+
+                risk_flags = run_risk_check(record, db_manager)
+                if risk_flags:
+                    record['risk_flags'] = risk_flags
+                    db_manager.update_risk_flags(
+                        record.get('invoice_num', ''),
+                        risk_flags
                     )
 
                 push_ok, push_error = push_invoice(record, db_manager)

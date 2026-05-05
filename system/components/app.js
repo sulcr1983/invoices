@@ -310,6 +310,24 @@ const API_BASE = '/api';
             return '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:' + cfg.bg + ';color:' + cfg.color + ';">' + cfg.label + '</span>';
         }
 
+        var riskFlagLabelsMap = {
+            'high_amount': '大额预警',
+            'split_suspicion': '拆票预警'
+        };
+
+        function getRiskLabels(riskFlags) {
+            if (!riskFlags) return '';
+            return riskFlags.split(',').filter(function(f) { return f.trim(); }).map(function(f) {
+                return riskFlagLabelsMap[f.trim()] || f.trim();
+            }).join('；');
+        }
+
+        function renderRiskBadge(riskFlags) {
+            if (!riskFlags) return '';
+            var labels = getRiskLabels(riskFlags);
+            return '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:#fef2f2;color:#dc2626;"><i class="fa fa-exclamation-triangle" style="font-size:10px;"></i>' + escapeHtml(labels) + '</span>';
+        }
+
         var verifyConfig = {enabled: false, available: false, cost: 0.25};
         var verifyNoRemind = localStorage.getItem('verify_no_remind') === 'true';
         var pendingVerifyInvoiceNum = null;
@@ -444,7 +462,7 @@ const API_BASE = '/api';
                     }
                     var isChecked = selectedInvoices.has(inv.invoice_num) ? 'checked' : '';
                     tr.innerHTML = '<td><input type="checkbox" class="invoice-checkbox" data-invoice="' + escapeHtml(inv.invoice_num) + '" ' + isChecked + ' onchange="toggleInvoiceSelect(this)" style="accent-color:var(--color-primary);"></td>' +
-                        '<td class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + deductionTag + '</td>' +
+                        '<td class="font-mono text-xs text-text-muted">' + (inv.risk_flags ? '<span style="cursor:pointer;margin-right:4px;" title="' + escapeHtml(getRiskLabels(inv.risk_flags)) + '"><i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:12px;"></i></span>' : '') + escapeHtml(inv.invoice_num) + deductionTag + '</td>' +
                         '<td class="font-medium text-text-primary">' + escapeHtml(inv.seller) + '</td>' +
                         '<td class="text-text-muted">' + escapeHtml(inv.date) + '</td>' +
                         '<td class="text-text-primary">' + escapeHtml(inv.buyer) + '</td>' +
@@ -505,6 +523,12 @@ const API_BASE = '/api';
             document.getElementById('detail-tax-amount').textContent = formatMoney(data.tax_amount);
             document.getElementById('detail-total-amount').textContent = formatMoney(data.total_amount);
             document.getElementById('detail-check-code').textContent = safeText(data.check_code);
+            var deptInput = document.getElementById('detail-department');
+            var projInput = document.getElementById('detail-project');
+            var expInput = document.getElementById('detail-expense-type');
+            if (deptInput) deptInput.value = data.department || '';
+            if (projInput) projInput.value = data.project || '';
+            if (expInput) expInput.value = data.expense_type || '';
             document.getElementById('detail-remark').value = safeText(data.remark);
             document.getElementById('btn-save-remark').dataset.invoiceNum = data.invoice_num;
             var verifyBadge = document.getElementById('detail-verify-badge');
@@ -905,6 +929,7 @@ const API_BASE = '/api';
             renderSellerRanking(result.top_sellers || []);
             renderMonthlyAmountChart(result.monthly_summary || []);
             loadInputTaxSummary();
+            loadExpenseDistribution();
         }
 
         async function loadInputTaxSummary() {
@@ -1014,6 +1039,87 @@ const API_BASE = '/api';
             if (result) { closeDetailModal(); loadInvoices(invoiceListPage); showToast('备注已保存', 'success'); }
         }
 
+        async function saveAttribution() {
+            var btn = document.getElementById('btn-save-attribution');
+            var invoiceNum = document.getElementById('btn-save-remark').dataset.invoiceNum;
+            if (!invoiceNum) return;
+            var dept = document.getElementById('detail-department').value;
+            var proj = document.getElementById('detail-project').value;
+            var exp = document.getElementById('detail-expense-type').value;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin-custom"></i> 保存中...';
+            btn.disabled = true;
+            try {
+                var result = await apiRequest('/invoices/' + invoiceNum + '/attribution', 'PUT', {
+                    department: dept, project: proj, expense_type: exp
+                });
+                if (result) {
+                    showToast('费用归属已保存', 'success');
+                    loadInvoices(invoiceListPage);
+                }
+            } finally {
+                btn.innerHTML = '<i class="fa fa-save"></i> 保存归属';
+                btn.disabled = false;
+            }
+        }
+
+        async function loadExpenseDistribution() {
+            var result = await apiRequest('/stats/expense-distribution');
+            if (!result) return;
+            renderDeptChart(result.dept_distribution || []);
+            renderExpenseTypeChart(result.expense_distribution || []);
+            var riskSection = document.getElementById('risk-alert-section');
+            var riskCountEl = document.getElementById('risk-alert-count');
+            var riskListEl = document.getElementById('risk-alert-list');
+            if (result.risk_count > 0 && riskSection && riskCountEl && riskListEl) {
+                riskCountEl.textContent = result.risk_count + ' 条预警';
+                var html = '';
+                (result.risk_invoices || []).forEach(function(inv) {
+                    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--color-border-light);">';
+                    html += '<i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:14px;flex-shrink:0;"></i>';
+                    html += '<div style="flex:1;min-width:0;">';
+                    html += '<div class="flex items-center gap-2"><span class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + '</span><span class="text-sm text-text-primary">' + escapeHtml(inv.seller) + '</span></div>';
+                    html += '<div class="text-xs text-text-muted">' + (inv.risk_labels || []).join('；') + ' · ¥' + formatMoney(inv.total_amount) + '</div>';
+                    html += '</div></div>';
+                });
+                riskListEl.innerHTML = html;
+                riskSection.style.display = '';
+            } else if (riskSection) {
+                riskSection.style.display = 'none';
+            }
+        }
+
+        function renderDeptChart(data) {
+            var container = document.getElementById('dept-distribution-chart');
+            if (!container || typeof echarts === 'undefined') return;
+            if (!data.length) { container.innerHTML = '<p class="text-text-muted text-xs text-center py-8">暂无数据</p>'; return; }
+            var chart = echarts.init(container);
+            chart.setOption({
+                tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
+                color: ['#6366f1','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe','#ede9fe','#f5f3ff','#e0e7ff','#c7d2fe','#a5b4fc'],
+                series: [{ type: 'pie', radius: ['40%','70%'], center: ['50%','50%'],
+                    label: { fontSize: 11, formatter: '{b}\n{d}%' },
+                    data: data.map(function(d) { return { name: d.name, value: d.amt }; })
+                }]
+            });
+        }
+
+        function renderExpenseTypeChart(data) {
+            var container = document.getElementById('expense-type-chart');
+            if (!container || typeof echarts === 'undefined') return;
+            if (!data.length) { container.innerHTML = '<p class="text-text-muted text-xs text-center py-8">暂无数据</p>'; return; }
+            var chart = echarts.init(container);
+            chart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: 60, right: 20, top: 10, bottom: 30 },
+                xAxis: { type: 'category', data: data.map(function(d) { return d.name; }), axisLabel: { fontSize: 10, rotate: 30 } },
+                yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+                series: [{ type: 'bar', data: data.map(function(d) { return d.amt; }),
+                    itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#6366f1'},{offset:1,color:'#a78bfa'}]) },
+                    barWidth: '50%'
+                }]
+            });
+        }
+
         // 按钮波纹效果
         document.addEventListener('mousedown', function(e) {
             var btn = e.target.closest('.btn-primary, .btn-ghost, button');
@@ -1041,6 +1147,7 @@ const API_BASE = '/api';
             document.getElementById('btn-confirm-process').addEventListener('click', doStartProcessing);
             document.getElementById('btn-clear-logs').addEventListener('click', clearLogs);
             document.getElementById('btn-save-remark').addEventListener('click', saveRemark);
+            document.getElementById('btn-save-attribution').addEventListener('click', saveAttribution);
             document.getElementById('btn-view-original').addEventListener('click', function() {
                 var md5 = this.dataset.md5;
                 if (!md5) return;

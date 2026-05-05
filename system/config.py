@@ -64,7 +64,11 @@ INVOICE_FIELD_NAMES = {
     "verify_time": "查验时间",
     "verify_result": "查验结果",
     "deduction_status": "认证状态",
-    "certification_date": "认证日期"
+    "certification_date": "认证日期",
+    "department": "部门",
+    "project": "项目",
+    "expense_type": "费用类型",
+    "risk_flags": "风险标记"
 }
 
 INVOICE_TEMPLATE = {
@@ -91,7 +95,11 @@ INVOICE_TEMPLATE = {
     "verify_time": "",
     "verify_result": "",
     "deduction_status": "unverified",
-    "certification_date": ""
+    "certification_date": "",
+    "department": "",
+    "project": "",
+    "expense_type": "",
+    "risk_flags": ""
 }
 
 RETRY_MAX_ATTEMPTS = int(os.environ.get("RETRY_MAX_ATTEMPTS", "3"))

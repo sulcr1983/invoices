@@ -43,7 +43,11 @@ class ModelsMixin:
                     verify_time TEXT,
                     verify_result TEXT,
                     deduction_status TEXT DEFAULT 'unverified',
-                    certification_date TEXT
+                    certification_date TEXT,
+                    department TEXT,
+                    project TEXT,
+                    expense_type TEXT,
+                    risk_flags TEXT
                 )
             """)
             cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_records_md5 ON records(file_md5)")
@@ -80,6 +84,10 @@ class ModelsMixin:
             ("verify_result", "TEXT"),
             ("deduction_status", "TEXT DEFAULT 'unverified'"),
             ("certification_date", "TEXT"),
+            ("department", "TEXT"),
+            ("project", "TEXT"),
+            ("expense_type", "TEXT"),
+            ("risk_flags", "TEXT"),
         ]
         for col_name, col_type in migrations:
             if col_name not in existing_cols:

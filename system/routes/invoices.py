@@ -46,7 +46,11 @@ def get_invoices():
                 'deduction_deadline': None,
                 'days_remaining': None,
                 'certification_status': record.get('deduction_status', 'unverified'),
-                'certification_date': record.get('certification_date', '')
+                'certification_date': record.get('certification_date', ''),
+                'department': record.get('department', ''),
+                'project': record.get('project', ''),
+                'expense_type': record.get('expense_type', ''),
+                'risk_flags': record.get('risk_flags', '')
             }
             inv_date = record.get('date', '')
             inv_type = record.get('invoice_type', '')
@@ -144,6 +148,23 @@ def update_invoice_remark(invoice_num):
         if not success:
             return {'status': 'error', 'message': '更新失败'}, 400
         return {'status': 'success', 'message': '更新成功'}
+    except Exception as e:
+        return api_error(str(e))
+
+
+@invoices_bp.route('/api/invoices/<invoice_num>/attribution', methods=['PUT'])
+def update_invoice_attribution(invoice_num):
+    try:
+        data = request.get_json()
+        department = data.get('department')
+        project = data.get('project')
+        expense_type = data.get('expense_type')
+        success = db_manager.update_expense_attribution(
+            invoice_num, department=department, project=project, expense_type=expense_type
+        )
+        if not success:
+            return {'status': 'error', 'message': '更新失败'}, 400
+        return {'status': 'success', 'message': '费用归属更新成功'}
     except Exception as e:
         return api_error(str(e))
 

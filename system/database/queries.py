@@ -116,7 +116,8 @@ class QueriesMixin:
             return rows
 
     def get_distinct_values(self, column):
-        safe_cols = {"seller", "buyer", "invoice_type", "invoice_num", "push_status"}
+        safe_cols = {"seller", "buyer", "invoice_type", "invoice_num", "push_status",
+                     "department", "project", "expense_type"}
         if column not in safe_cols:
             logger.warning(f"不允许的列名: {column}")
             return []

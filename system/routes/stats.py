@@ -82,6 +82,79 @@ def get_stats_summary():
         return api_error(str(e))
 
 
+@stats_bp.route('/api/stats/expense-distribution', methods=['GET'])
+def get_expense_distribution():
+    try:
+        conn = db_manager._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COALESCE(NULLIF(department, ''), '未分配') as dept,
+                   COUNT(*) as cnt,
+                   COALESCE(SUM(total_amount), 0) as amt
+            FROM records
+            GROUP BY dept
+            ORDER BY amt DESC
+        """)
+        dept_rows = cursor.fetchall()
+        dept_distribution = []
+        for row in dept_rows:
+            dept_distribution.append({
+                'name': row[0], 'cnt': row[1], 'amt': round(row[2], 2)
+            })
+
+        cursor.execute("""
+            SELECT COALESCE(NULLIF(expense_type, ''), '未分类') as exp_type,
+                   COUNT(*) as cnt,
+                   COALESCE(SUM(total_amount), 0) as amt
+            FROM records
+            GROUP BY exp_type
+            ORDER BY amt DESC
+        """)
+        exp_rows = cursor.fetchall()
+        expense_distribution = []
+        for row in exp_rows:
+            expense_distribution.append({
+                'name': row[0], 'cnt': row[1], 'amt': round(row[2], 2)
+            })
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM records WHERE risk_flags IS NOT NULL AND risk_flags != ''
+        """)
+        risk_count = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT invoice_num, seller, total_amount, date, risk_flags
+            FROM records WHERE risk_flags IS NOT NULL AND risk_flags != ''
+            ORDER BY process_time DESC LIMIT 20
+        """)
+        risk_rows = cursor.fetchall()
+        risk_invoices = []
+        for row in risk_rows:
+            from ..core.risk_checker import get_risk_flag_labels
+            risk_invoices.append({
+                'invoice_num': row[0],
+                'seller': row[1],
+                'total_amount': row[2],
+                'date': row[3],
+                'risk_flags': row[4],
+                'risk_labels': get_risk_flag_labels(row[4])
+            })
+
+        conn.close()
+        return {
+            'status': 'success',
+            'data': {
+                'dept_distribution': dept_distribution,
+                'expense_distribution': expense_distribution,
+                'risk_count': risk_count,
+                'risk_invoices': risk_invoices
+            }
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
 @stats_bp.route('/api/stats/input-tax-summary', methods=['GET'])
 def get_input_tax_summary():
     try:

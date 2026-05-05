@@ -18,6 +18,40 @@ class WritesMixin:
                 logger.info(f"备注更新: {invoice_num}")
             return affected
 
+    def update_expense_attribution(self, invoice_num, department=None, project=None, expense_type=None):
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            sets = []
+            params = []
+            if department is not None:
+                sets.append("department = ?")
+                params.append(department)
+            if project is not None:
+                sets.append("project = ?")
+                params.append(project)
+            if expense_type is not None:
+                sets.append("expense_type = ?")
+                params.append(expense_type)
+            if not sets:
+                return False
+            params.append(invoice_num)
+            cursor.execute(f"UPDATE records SET {', '.join(sets)} WHERE invoice_num = ?", params)
+            conn.commit()
+            affected = cursor.rowcount > 0
+            if affected:
+                logger.info(f"费用归属更新: {invoice_num} dept={department} proj={project} exp={expense_type}")
+            return affected
+
+    def update_risk_flags(self, invoice_num, risk_flags):
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE records SET risk_flags = ? WHERE invoice_num = ?", (risk_flags, invoice_num))
+            conn.commit()
+            affected = cursor.rowcount > 0
+            if affected and risk_flags:
+                logger.info(f"风险标记更新: {invoice_num} flags={risk_flags}")
+            return affected
+
     def insert_record_with_transaction(self, record_dict, batch_id=None):
         with self.Transaction(self) as txn:
             cursor = txn.cursor
