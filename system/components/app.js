@@ -114,19 +114,6 @@ const API_BASE = '/api';
             }
         }
 
-        function togglePreviewSection() {
-            var content = document.getElementById('detail-preview-content');
-            var icon = document.getElementById('preview-toggle-icon');
-            if (!content) return;
-            if (content.style.display === 'none') {
-                content.style.display = '';
-                if (icon) icon.style.transform = 'rotate(180deg)';
-            } else {
-                content.style.display = 'none';
-                if (icon) icon.style.transform = 'rotate(0deg)';
-            }
-        }
-
         function toggleLogPanel() {
             var content = document.getElementById('log-panel-content');
             var icon = document.getElementById('log-toggle-icon');
@@ -656,7 +643,7 @@ const API_BASE = '/api';
             if (projInput) projInput.value = data.project || '';
             if (expInput) expInput.value = data.expense_type || '';
             document.getElementById('detail-remark').value = safeText(data.remark);
-            document.getElementById('btn-save-remark').dataset.invoiceNum = data.invoice_num;
+            document.getElementById('btn-save-all').dataset.invoiceNum = data.invoice_num;
             var verifyBadge = document.getElementById('detail-verify-badge');
             if (verifyBadge) verifyBadge.innerHTML = renderVerifyBadge(data.verify_status || 'unverified');
             var verifyBtn = document.getElementById('btn-verify-invoice');
@@ -728,41 +715,6 @@ const API_BASE = '/api';
                 } else {
                     riskBadgeArea.style.display = 'none';
                 }
-            }
-            var viewBtn = document.getElementById('btn-view-original');
-            if (data.file_md5) { viewBtn.dataset.md5 = data.file_md5; viewBtn.style.display = 'inline-flex'; }
-            else { viewBtn.style.display = 'none'; }
-
-            var imgContainer = document.getElementById('detail-original-image');
-            var ocrContainer = document.getElementById('detail-ocr-result');
-            if (imgContainer) {
-                if (data.file_md5) {
-                    imgContainer.innerHTML = '<img src="/api/invoices/' + encodeURIComponent(invoiceNum) + '/original" style="width:100%;border-radius:6px;cursor:pointer;display:none;" onclick="window.open(this.src,\'_blank\')" onload="this.style.display=\'block\';this.parentElement.querySelector(\'.img-loading\').style.display=\'none\';" onerror="this.style.display=\'none\';this.parentElement.querySelector(\'.img-loading\').style.display=\'none\';this.parentElement.querySelector(\'.img-error\').style.display=\'flex\';" /><div class="img-loading" style="display:flex;align-items:center;justify-content:center;gap:4px;color:var(--color-text-muted);font-size:11px;"><i class="fa fa-spinner fa-spin-custom"></i> 加载中...</div><div class="img-error" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--color-text-muted);font-size:11px;"><i class="fa fa-image" style="font-size:24px;opacity:0.3;"></i>原图未找到</div>';
-                } else {
-                    imgContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--color-text-muted);font-size:11px;"><i class="fa fa-image" style="font-size:24px;opacity:0.3;"></i>暂无原图</div>';
-                }
-            }
-            if (ocrContainer) {
-                var ocrFields = [
-                    ['发票号码', data.invoice_num],
-                    ['发票代码', data.invoice_code],
-                    ['销售方', data.seller],
-                    ['购买方', data.buyer],
-                    ['价税合计', data.total_amount],
-                    ['不含税金额', data.price_without_tax],
-                    ['税率', data.tax_rate],
-                    ['税额', data.tax_amount],
-                    ['开票日期', data.date],
-                    ['项目内容', data.item]
-                ];
-                var ocrHtml = '<table style="width:100%;border-collapse:collapse;">';
-                ocrFields.forEach(function(pair) {
-                    if (pair[1]) {
-                        ocrHtml += '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 6px;color:#94a3b8;white-space:nowrap;">' + pair[0] + '</td><td style="padding:3px 6px;color:#1e293b;font-weight:500;">' + escapeHtml(String(pair[1])) + '</td></tr>';
-                    }
-                });
-                ocrHtml += '</table>';
-                ocrContainer.innerHTML = ocrHtml;
             }
 
             document.getElementById('invoice-detail-modal').classList.add('show');
@@ -1081,7 +1033,7 @@ const API_BASE = '/api';
             tbody.innerHTML = html;
         }
 
-        var statsPeriod = 'month';
+        var statsPeriod = 'all';
 
         function switchStatsPeriod(period, btn) {
             statsPeriod = period;
@@ -1226,33 +1178,28 @@ const API_BASE = '/api';
             showToast('已导出 ' + data.total + ' 条发票记录', 'success');
         }
 
-        async function saveRemark() {
-            var invoiceNum = document.getElementById('btn-save-remark').dataset.invoiceNum;
-            var remark = document.getElementById('detail-remark').value;
+        async function saveAll() {
+            var invoiceNum = document.getElementById('btn-save-all').dataset.invoiceNum;
             if (!invoiceNum) return;
-            var result = await apiRequest('/invoices/' + encodeURIComponent(invoiceNum) + '/remark', 'PUT', {remark: remark});
-            if (result) { closeDetailModal(); loadInvoices(invoiceListPage); showToast('备注已保存', 'success'); }
-        }
-
-        async function saveAttribution() {
-            var btn = document.getElementById('btn-save-attribution');
-            var invoiceNum = document.getElementById('btn-save-remark').dataset.invoiceNum;
-            if (!invoiceNum) return;
-            var dept = document.getElementById('detail-department').value;
-            var proj = document.getElementById('detail-project').value;
-            var exp = document.getElementById('detail-expense-type').value;
+            var btn = document.getElementById('btn-save-all');
             btn.innerHTML = '<i class="fa fa-spinner fa-spin-custom"></i> 保存中...';
             btn.disabled = true;
             try {
-                var result = await apiRequest('/invoices/' + encodeURIComponent(invoiceNum) + '/attribution', 'PUT', {
+                var remark = document.getElementById('detail-remark').value;
+                var dept = document.getElementById('detail-department').value;
+                var proj = document.getElementById('detail-project').value;
+                var exp = document.getElementById('detail-expense-type').value;
+                var remarkResult = await apiRequest('/invoices/' + encodeURIComponent(invoiceNum) + '/remark', 'PUT', {remark: remark});
+                var attrResult = await apiRequest('/invoices/' + encodeURIComponent(invoiceNum) + '/attribution', 'PUT', {
                     department: dept, project: proj, expense_type: exp
                 });
-                if (result) {
-                    showToast('费用归属已保存', 'success');
+                if (remarkResult || attrResult) {
+                    closeDetailModal();
                     loadInvoices(invoiceListPage);
+                    showToast('保存成功', 'success');
                 }
             } finally {
-                btn.innerHTML = '<i class="fa fa-save"></i> 保存归属';
+                btn.innerHTML = '<i class="fa fa-save"></i> 保存';
                 btn.disabled = false;
             }
         }
@@ -1341,13 +1288,7 @@ const API_BASE = '/api';
             document.getElementById('hero-start-process').addEventListener('click', startProcessing);
             document.getElementById('btn-confirm-process').addEventListener('click', doStartProcessing);
             document.getElementById('btn-clear-logs').addEventListener('click', clearLogs);
-            document.getElementById('btn-save-remark').addEventListener('click', saveRemark);
-            document.getElementById('btn-save-attribution').addEventListener('click', saveAttribution);
-            document.getElementById('btn-view-original').addEventListener('click', function() {
-                var md5 = this.dataset.md5;
-                if (!md5) return;
-                window.open('/api/invoice/file/' + md5, '_blank');
-            });
+            document.getElementById('btn-save-all').addEventListener('click', saveAll);
             document.getElementById('search-keyword').addEventListener('keyup', function(e) { if (e.key === 'Enter') loadInvoices(1); });
             document.getElementById('top-search-input').addEventListener('keyup', function(e) {
                 if (e.key === 'Enter' && this.value.trim()) {

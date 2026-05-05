@@ -375,12 +375,12 @@
         <div id="page-stats" class="page-content">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-2">
-                    <button class="stats-period-btn active" data-period="month" onclick="switchStatsPeriod('month',this)">本月</button>
+                    <button class="stats-period-btn" data-period="month" onclick="switchStatsPeriod('month',this)">本月</button>
                     <button class="stats-period-btn" data-period="quarter" onclick="switchStatsPeriod('quarter',this)">本季度</button>
                     <button class="stats-period-btn" data-period="year" onclick="switchStatsPeriod('year',this)">本年度</button>
-                    <button class="stats-period-btn" data-period="all" onclick="switchStatsPeriod('all',this)">全部</button>
+                    <button class="stats-period-btn active" data-period="all" onclick="switchStatsPeriod('all',this)">全部</button>
                 </div>
-                <span class="text-xs text-text-muted" id="stats-period-label">本月数据</span>
+                <span class="text-xs text-text-muted" id="stats-period-label">全部数据</span>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">发票总额</p><p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt">¥0</p></div>
@@ -451,7 +451,6 @@
                     </div>
                 </div>
                 <div class="detail-header-actions">
-                    <button id="btn-view-original" class="detail-btn-ghost" style="display:none;"><i class="fa fa-external-link"></i> 原件</button>
                     <button onclick="closeDetailModal()" class="detail-close-btn"><i class="fa fa-times"></i></button>
                 </div>
             </div>
@@ -499,32 +498,6 @@
                     <div id="detail-verify-result-content" class="detail-verify-result-content"></div>
                 </div>
 
-                <div id="detail-preview-section" class="detail-preview-section">
-                    <div class="detail-preview-header" onclick="togglePreviewSection()">
-                        <div class="detail-preview-header-left">
-                            <div class="detail-section-icon"><i class="fa fa-image"></i></div>
-                            <span class="detail-section-title">发票原图 · OCR对照</span>
-                        </div>
-                        <i class="fa fa-chevron-down detail-toggle-icon" id="preview-toggle-icon"></i>
-                    </div>
-                    <div id="detail-preview-content" class="detail-preview-content" style="display:none;">
-                        <div class="detail-preview-grid">
-                            <div>
-                                <p class="detail-preview-label">发票原图</p>
-                                <div id="detail-original-image" class="detail-preview-box">
-                                    <span class="text-text-muted text-xs">暂无原图</span>
-                                </div>
-                            </div>
-                            <div>
-                                <p class="detail-preview-label">OCR识别结果</p>
-                                <div id="detail-ocr-result" class="detail-preview-box detail-ocr-box">
-                                    <span class="text-text-muted text-xs">暂无OCR数据</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="detail-info-grid">
                     <div class="detail-info-card">
                         <div class="detail-info-card-header">
@@ -548,13 +521,10 @@
                 </div>
 
                 <div class="detail-attribution-card">
-                    <div class="detail-attribution-header">
-                        <div class="detail-info-card-header">
+                    <div class="detail-info-card-header">
                             <div class="detail-section-icon"><i class="fa fa-tag"></i></div>
                             <span class="detail-section-title">费用归属</span>
                         </div>
-                        <button id="btn-save-attribution" class="btn-primary btn-primary-sm" style="font-size:11px;padding:4px 14px;"><i class="fa fa-save"></i> 保存</button>
-                    </div>
                     <div class="detail-attribution-grid">
                         <div>
                             <p class="detail-attribution-label">部门</p>
@@ -586,7 +556,7 @@
 
                 <div class="detail-footer">
                     <button onclick="closeDetailModal()" class="btn-ghost">关闭</button>
-                    <button id="btn-save-remark" class="btn-primary btn-primary-sm"><i class="fa fa-save"></i> 保存备注</button>
+                    <button id="btn-save-all" class="btn-primary btn-primary-sm"><i class="fa fa-save"></i> 保存</button>
                 </div>
             </div>
         </div>
@@ -631,8 +601,8 @@
                     <span class="text-text-secondary text-xs">不再提示费用确认（后续直接验真）</span>
                 </label>
                 <div style="display:flex;gap:12px;justify-content:center;">
-                    <button onclick="closeVerifyConfirm()" class="btn-ghost" style="min-width:120px;text-align:center;">取消</button>
-                    <button onclick="confirmVerify()" class="btn-primary btn-primary-sm" style="min-width:120px;text-align:center;"><i class="fa fa-check"></i> 确认验真</button>
+                    <button onclick="closeVerifyConfirm()" class="btn-ghost" style="min-width:120px;justify-content:center;">取消</button>
+                    <button onclick="confirmVerify()" class="btn-primary btn-primary-sm" style="min-width:120px;justify-content:center;"><i class="fa fa-check"></i> 确认验真</button>
                 </div>
             </div>
         </div>

@@ -211,8 +211,8 @@ body {
 /* --- 数据表格 --- */
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table thead th {
-    padding: 11px 16px;
-    text-align: left;
+    padding: 8px 10px;
+    text-align: center;
     font-size: 11px;
     font-weight: 600;
     color: var(--color-text-muted);
@@ -229,9 +229,11 @@ body {
 .data-table tbody tr:hover { background: var(--color-primary-bg); }
 .data-table tbody tr:last-child { border-bottom: none; }
 .data-table tbody td {
-    padding: 11px 16px;
+    padding: 8px 10px;
     font-size: 13px;
     color: var(--color-text-secondary);
+    text-align: center;
+    vertical-align: middle;
 }
 
 /* --- 发票Tab --- */
@@ -244,7 +246,6 @@ body {
     background: transparent;
     border: none;
     cursor: pointer;
-    transition: all var(--transition-fast);
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -655,7 +656,7 @@ select.input-field {
 }
 .detail-mono-lg {
     font-family: 'JetBrains Mono', monospace;
-    font-size: var(--fs-h1);
+    font-size: var(--fs-h2);
     font-weight: 600;
     color: var(--brand);
     letter-spacing: 0.02em;
@@ -708,8 +709,7 @@ select.input-field {
     text-transform: uppercase;
 }
 .detail-amount-value {
-    font-family: 'Outfit', sans-serif;
-    font-size: var(--fs-h1);
+    font-size: var(--fs-h2);
     font-weight: 700;
     color: var(--brand);
     line-height: 1.2;
@@ -744,7 +744,6 @@ select.input-field {
     font-weight: 500;
     margin: 0;
 }
-
 .detail-status-bar {
     display: flex;
     align-items: center;
@@ -823,28 +822,11 @@ select.input-field {
     overflow-y: auto;
 }
 
-.detail-preview-section {
+.detail-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-md);
     margin-bottom: var(--sp-md);
-    border: 1px solid var(--border);
-    border-radius: var(--br-md);
-    overflow: hidden;
-}
-.detail-preview-header {
-    padding: var(--sp-sm) var(--sp-md);
-    background: var(--bg-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: background 0.15s ease;
-}
-.detail-preview-header:hover {
-    background: var(--bg-primary);
-}
-.detail-preview-header-left {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-sm);
 }
 .detail-section-icon {
     width: var(--sp-xl);
@@ -862,51 +844,6 @@ select.input-field {
     font-size: var(--fs-caption);
     font-weight: 600;
     color: var(--text-primary);
-}
-.detail-toggle-icon {
-    font-size: 10px;
-    color: var(--text-secondary);
-    transition: transform 0.25s ease;
-}
-.detail-preview-content {
-    padding: var(--sp-md);
-    background: var(--bg-primary);
-}
-.detail-preview-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--sp-md);
-}
-.detail-preview-label {
-    font-size: var(--fs-caption);
-    color: var(--text-secondary);
-    margin: 0 0 var(--sp-xs);
-    font-weight: 500;
-}
-.detail-preview-box {
-    border: 1px solid var(--border);
-    border-radius: var(--br-md);
-    overflow: hidden;
-    min-height: 120px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-secondary);
-}
-.detail-ocr-box {
-    padding: var(--sp-sm);
-    font-size: var(--fs-caption);
-    color: var(--text-secondary);
-    max-height: 200px;
-    overflow-y: auto;
-    align-items: flex-start;
-}
-
-.detail-info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--sp-md);
-    margin-bottom: var(--sp-md);
 }
 .detail-info-card {
     background: var(--bg-primary);
@@ -950,7 +887,7 @@ select.input-field {
 }
 .detail-info-value-mono {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: var(--fs-caption);
     color: var(--text-secondary);
     text-align: right;
     word-break: break-all;
