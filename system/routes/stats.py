@@ -85,17 +85,28 @@ def get_stats_summary():
 @stats_bp.route('/api/stats/expense-distribution', methods=['GET'])
 def get_expense_distribution():
     try:
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
         conn = db_manager._get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        where = ""
+        params = []
+        if date_from:
+            where += " AND date >= ?"
+            params.append(date_from)
+        if date_to:
+            where += " AND date <= ?"
+            params.append(date_to)
+
+        cursor.execute(f"""
             SELECT COALESCE(NULLIF(department, ''), '未分配') as dept,
                    COUNT(*) as cnt,
                    COALESCE(SUM(total_amount), 0) as amt
-            FROM records
+            FROM records WHERE 1=1 {where}
             GROUP BY dept
             ORDER BY amt DESC
-        """)
+        """, params)
         dept_rows = cursor.fetchall()
         dept_distribution = []
         for row in dept_rows:
@@ -103,14 +114,14 @@ def get_expense_distribution():
                 'name': row[0], 'cnt': row[1], 'amt': round(row[2], 2)
             })
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT COALESCE(NULLIF(expense_type, ''), '未分类') as exp_type,
                    COUNT(*) as cnt,
                    COALESCE(SUM(total_amount), 0) as amt
-            FROM records
+            FROM records WHERE 1=1 {where}
             GROUP BY exp_type
             ORDER BY amt DESC
-        """)
+        """, params)
         exp_rows = cursor.fetchall()
         expense_distribution = []
         for row in exp_rows:
@@ -118,12 +129,12 @@ def get_expense_distribution():
                 'name': row[0], 'cnt': row[1], 'amt': round(row[2], 2)
             })
 
-        cursor.execute("""
-            SELECT COUNT(*) FROM records WHERE risk_flags IS NOT NULL AND risk_flags != ''
-        """)
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM records WHERE risk_flags IS NOT NULL AND risk_flags != '' {where.replace('1=1 AND', '')}
+        """, params if where else [])
         risk_count = cursor.fetchone()[0]
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT invoice_num, seller, total_amount, date, risk_flags
             FROM records WHERE risk_flags IS NOT NULL AND risk_flags != ''
             ORDER BY process_time DESC LIMIT 20
@@ -159,7 +170,9 @@ def get_expense_distribution():
 def get_input_tax_summary():
     try:
         period = request.args.get('period')
-        result = db_manager.get_input_tax_summary(period)
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        result = db_manager.get_input_tax_summary(period=period, date_from=date_from, date_to=date_to)
         return {
             'status': 'success',
             'data': result

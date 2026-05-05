@@ -1083,8 +1083,8 @@ const API_BASE = '/api';
             var params = [];
             if (range.from) params.push('date_from=' + range.from);
             if (range.to) params.push('date_to=' + range.to);
-            var url = '/stats/summary' + (params.length ? '?' + params.join('&') : '');
-            var result = await apiRequest(url);
+            var qs = params.length ? '?' + params.join('&') : '';
+            var result = await apiRequest('/stats/summary' + qs);
             if (!result) return;
             document.getElementById('stat-total-amt').textContent = formatMoney(result.total_amt);
             document.getElementById('stat-total-price').textContent = formatMoney(result.total_price);
@@ -1092,12 +1092,13 @@ const API_BASE = '/api';
             document.getElementById('stat-seller-cnt').textContent = result.seller_cnt || 0;
             renderSellerRanking(result.top_sellers || []);
             renderMonthlyAmountChart(result.monthly_summary || []);
-            loadInputTaxSummary();
-            loadExpenseDistribution();
+            loadInputTaxSummary(qs);
+            loadExpenseDistribution(qs);
         }
 
-        async function loadInputTaxSummary() {
-            var result = await apiRequest('/stats/input-tax-summary');
+        async function loadInputTaxSummary(qs) {
+            qs = qs || '';
+            var result = await apiRequest('/stats/input-tax-summary' + qs);
             if (!result) return;
             var period = result.period || '';
             var periodEl = document.getElementById('input-tax-period');
@@ -1226,8 +1227,9 @@ const API_BASE = '/api';
             }
         }
 
-        async function loadExpenseDistribution() {
-            var result = await apiRequest('/stats/expense-distribution');
+        async function loadExpenseDistribution(qs) {
+            qs = qs || '';
+            var result = await apiRequest('/stats/expense-distribution' + qs);
             if (!result) return;
             renderDeptChart(result.dept_distribution || []);
             renderExpenseTypeChart(result.expense_distribution || []);

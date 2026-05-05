@@ -204,11 +204,30 @@ class QueriesMixin:
             type_stats = {row[0]: row[1] for row in cursor.fetchall()}
             return {'total': total, 'unique_invoices': unique_invoices, 'type_stats': type_stats}
 
-    def get_input_tax_summary(self, period=None):
-        if not period:
-            period = datetime.now().strftime("%Y-%m")
+    def get_input_tax_summary(self, period=None, date_from=None, date_to=None):
         with self.connection() as conn:
             cursor = conn.cursor()
+            if date_from or date_to:
+                where = "WHERE invoice_type LIKE '%专%'"
+                params_c = []
+                params_u = []
+                if date_from:
+                    where += " AND date >= ?"
+                    params_c.append(date_from)
+                    params_u.append(date_from)
+                if date_to:
+                    where += " AND date <= ?"
+                    params_c.append(date_to)
+                    params_u.append(date_to)
+                period_label = (date_from or '') + '~' + (date_to or '')
+            else:
+                if not period:
+                    period = datetime.now().strftime("%Y-%m")
+                where = "WHERE invoice_type LIKE '%专%' AND strftime('%Y-%m', date) = ?"
+                params_c = [period]
+                params_u = [period]
+                period_label = period
+
             cursor.execute("""
                 SELECT tax_rate,
                        COUNT(*) as cnt,
@@ -216,12 +235,10 @@ class QueriesMixin:
                        COALESCE(SUM(tax_amount), 0) as total_tax,
                        COALESCE(SUM(total_amount), 0) as total_amount
                 FROM records
-                WHERE invoice_type LIKE '%专%'
-                  AND strftime('%Y-%m', date) = ?
-                  AND deduction_status = 'certified'
+                {where} AND deduction_status = 'certified'
                 GROUP BY tax_rate
                 ORDER BY tax_rate
-            """, (period,))
+            """.format(where=where), params_c)
             certified_rows = cursor.fetchall()
             certified = []
             for row in certified_rows:
@@ -240,12 +257,10 @@ class QueriesMixin:
                        COALESCE(SUM(tax_amount), 0) as total_tax,
                        COALESCE(SUM(total_amount), 0) as total_amount
                 FROM records
-                WHERE invoice_type LIKE '%专%'
-                  AND strftime('%Y-%m', date) = ?
-                  AND deduction_status = 'unverified'
+                {where} AND deduction_status = 'unverified'
                 GROUP BY tax_rate
                 ORDER BY tax_rate
-            """, (period,))
+            """.format(where=where), params_u)
             unverified_rows = cursor.fetchall()
             unverified = []
             for row in unverified_rows:
@@ -260,23 +275,19 @@ class QueriesMixin:
             cursor.execute("""
                 SELECT COUNT(*), COALESCE(SUM(tax_amount), 0)
                 FROM records
-                WHERE invoice_type LIKE '%专%'
-                  AND strftime('%Y-%m', date) = ?
-                  AND deduction_status = 'certified'
-            """, (period,))
+                {where} AND deduction_status = 'certified'
+            """.format(where=where), params_c)
             cert_summary = cursor.fetchone()
 
             cursor.execute("""
                 SELECT COUNT(*), COALESCE(SUM(tax_amount), 0)
                 FROM records
-                WHERE invoice_type LIKE '%专%'
-                  AND strftime('%Y-%m', date) = ?
-                  AND deduction_status = 'unverified'
-            """, (period,))
+                {where} AND deduction_status = 'unverified'
+            """.format(where=where), params_u)
             unv_summary = cursor.fetchone()
 
             return {
-                'period': period,
+                'period': period_label,
                 'certified': certified,
                 'unverified': unverified,
                 'certified_summary': {
