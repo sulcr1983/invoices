@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:5000/)",
+      "Bash(curl -s http://localhost:5000/api/invoices?page=1\\\\&limit=5)",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s http://localhost:5000/api/stats/summary)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:d.get\\(k\\) for k in ['total_amt','total_cnt','total_price','total_tax','seller_cnt']}, ensure_ascii=False, indent=2\\)\\)\")",
+      "Bash(curl *)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, '.'\\); from system.tests.test_api import *; print\\('import ok'\\)\")",
+      "Bash(python -m pytest system/tests/test_api.py -v --tb=long)",
+      "Bash(taskkill -f -im python.exe)",
+      "Bash(python system/api_server.py)",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\)['data'];print\\(f'Stats OK: {len\\(d[\\\\\"stats\\\\\"]\\)} fields, {len\\(d[\\\\\"monthly_trend\\\\\"]\\)} months, {len\\(d[\\\\\"recent_invoices\\\\\"]\\)} recent'\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\)['data'];print\\(f'{d[\\\\\"total\\\\\"]} total, page {d[\\\\\"page\\\\\"]}, {len\\(d[\\\\\"invoices\\\\\"]\\)} items'\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\)['data'];print\\(f'Total: ¥{d[\\\\\"total_amt\\\\\"]}, {d[\\\\\"total_cnt\\\\\"]} invoices, {d[\\\\\"seller_cnt\\\\\"]} sellers'\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\)['data'];print\\(f'Enabled: {d[\\\\\"enabled\\\\\"]}, Available: {d[\\\\\"available\\\\\"]}, Cost: ¥{d[\\\\\"cost_per_call\\\\\"]}'\\)\")",
+      "Bash(python -c \"import sys;h=sys.stdin.read\\(\\);print\\(f'HTML size: {len\\(h\\)} bytes, Has echarts: {\\\\\"echarts\\\\\" in h}, Has app.js: {\\\\\"app.js\\\\\" in h}'\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d['data'], ensure_ascii=False, indent=2\\)\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\)['data']; print\\(f'Dept: {len\\(d[\\\\\"dept_distribution\\\\\"]\\)} cats, Expense: {len\\(d[\\\\\"expense_distribution\\\\\"]\\)} cats, Risk: {d[\\\\\"risk_count\\\\\"]} items'\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\)['data']; print\\(f'Period: {d[\\\\\"period\\\\\"]}, Certified tax: {d[\\\\\"certified_summary\\\\\"][\\\\\"total_tax\\\\\"]}'\\)\")",
+      "Bash(python -m pytest system/tests/test_api.py -v --tb=short)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\)['data']['invoices'][0]; print\\('Fields:', [k for k in d.keys\\(\\) if 'status' in k or 'deadline' in k]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\)['data']['invoices'][0]; keys=[k for k in d.keys\\(\\) if 'status' in k or 'deadline' in k]; print\\('Keys:', keys\\)\")",
+      "Bash(netstat -ano)",
+      "Bash(pip show *)",
+      "Bash(pip3 show *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('OK' if d.get\\('status'\\)=='success' else 'FAIL'\\)\")",
+      "Bash(python _playwright_audit.py)",
+      "Bash(python _playwright_audit2.py)",
+      "Bash(pkill -f \"api_server.py\")",
+      "Bash(python _test_dashboard.py)",
+      "Bash(git checkout *)",
+      "Bash(git add *)"
+    ]
+  }
+}

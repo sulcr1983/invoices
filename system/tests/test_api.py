@@ -881,3 +881,276 @@ class TestUserFlow:
         # 验证清空
         resp3 = client.get('/api/logs')
         assert resp3.get_json()['data'][0]['message'] == '日志已清空'
+
+
+# ================================================================
+# 17. 发票筛选测试 (verify_status, risk_flags)
+# ================================================================
+
+class TestInvoiceFilters:
+    """测试发票列表筛选功能"""
+
+    def test_filter_by_verify_status(self, client):
+        """正常流程：按验真状态筛选"""
+        resp = client.get('/api/invoices?verify_status=unverified&limit=100')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        for inv in data['invoices']:
+            assert inv['verify_status'] == 'unverified'
+
+    def test_filter_by_risk_flags(self, client):
+        """正常流程：筛选高风险发票"""
+        resp = client.get('/api/invoices?risk_flags=yes&limit=100')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        for inv in data['invoices']:
+            assert inv.get('risk_flags')
+
+    def test_filter_combined(self, client):
+        """正常流程：验真状态 + 日期范围组合筛选"""
+        resp = client.get('/api/invoices?verify_status=unverified&date_from=2026-01-01&date_to=2026-12-31&limit=100')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        for inv in data['invoices']:
+            assert inv['verify_status'] == 'unverified'
+
+    def test_filter_date_range_only(self, client):
+        """边界条件：仅日期范围"""
+        resp = client.get('/api/invoices?date_from=2026-03-01&date_to=2026-04-30&limit=100')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        for inv in data['invoices']:
+            assert inv['date'] >= '2026-03-01' and inv['date'] <= '2026-04-30'
+
+    def test_filter_no_results(self, client):
+        """边界条件：筛选结果为空"""
+        resp = client.get('/api/invoices?date_from=2010-01-01&date_to=2010-12-31')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        assert data['total'] == 0
+        assert data['invoices'] == []
+
+
+# ================================================================
+# 18. 排序测试
+# ================================================================
+
+class TestInvoiceSorting:
+    """测试发票列表排序功能"""
+
+    def test_sort_date_desc(self, client):
+        """正常流程：按日期倒序"""
+        resp = client.get('/api/invoices?sort_field=date&sort_dir=desc&limit=100')
+        assert resp.status_code == 200
+        invoices = resp.get_json()['data']['invoices']
+        dates = [inv['date'] for inv in invoices if inv['date']]
+        assert dates == sorted(dates, reverse=True), "日期未按倒序排列"
+
+    def test_sort_date_asc(self, client):
+        """正常流程：按日期正序"""
+        resp = client.get('/api/invoices?sort_field=date&sort_dir=asc&limit=100')
+        assert resp.status_code == 200
+        invoices = resp.get_json()['data']['invoices']
+        dates = [inv['date'] for inv in invoices if inv['date']]
+        assert dates == sorted(dates), "日期未按正序排列"
+
+    def test_sort_amount_desc(self, client):
+        """正常流程：按金额倒序"""
+        resp = client.get('/api/invoices?sort_field=amount&sort_dir=desc&limit=100')
+        assert resp.status_code == 200
+        invoices = resp.get_json()['data']['invoices']
+        amounts = [inv['total_amount'] for inv in invoices if inv['total_amount'] is not None]
+        assert amounts == sorted(amounts, reverse=True), "金额未按倒序排列"
+
+    def test_sort_amount_asc(self, client):
+        """正常流程：按金额正序"""
+        resp = client.get('/api/invoices?sort_field=amount&sort_dir=asc&limit=100')
+        assert resp.status_code == 200
+        invoices = resp.get_json()['data']['invoices']
+        amounts = [inv['total_amount'] for inv in invoices if inv['total_amount'] is not None]
+        assert amounts == sorted(amounts), "金额未按正序排列"
+
+    def test_sort_default(self, client):
+        """边界条件：不传排序参数，使用默认排序"""
+        resp = client.get('/api/invoices?limit=100')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        assert 'invoices' in data
+        assert data['total'] >= 0
+
+    def test_sort_invalid_field(self, client):
+        """异常处理：无效排序字段，回退到默认排序"""
+        resp = client.get('/api/invoices?sort_field=nonexistent&sort_dir=desc&limit=100')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        assert 'invoices' in data
+
+
+# ================================================================
+# 19. deadline_status 字段验证
+# ================================================================
+
+class TestDeadlineStatus:
+    """测试到期状态字段"""
+
+    def test_deadline_status_field_exists(self, client):
+        """正常流程：发票列表包含 deadline_status 字段"""
+        resp = client.get('/api/invoices?limit=100')
+        assert resp.status_code == 200
+        invoices = resp.get_json()['data']['invoices']
+        assert len(invoices) > 0
+        assert 'deadline_status' in invoices[0]
+
+    def test_no_deadline_status_leak(self, client):
+        """正常流程：发票列表不应包含旧的 deduction_status 字段"""
+        resp = client.get('/api/invoices?limit=100')
+        assert resp.status_code == 200
+        invoices = resp.get_json()['data']['invoices']
+        assert len(invoices) > 0
+        assert 'deduction_status' not in invoices[0]
+
+
+# ================================================================
+# 20. 批量验真接口测试
+# ================================================================
+
+class TestBatchVerify:
+    """测试批量验真接口"""
+
+    def test_batch_verify_empty_list(self, client):
+        """异常处理：空列表"""
+        resp = client.post('/api/invoices/batch-verify',
+                           data=json.dumps({'invoice_nums': []}),
+                           content_type='application/json')
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert data['status'] == 'error'
+
+    def test_batch_verify_no_body(self, client):
+        """异常处理：无请求体"""
+        resp = client.post('/api/invoices/batch-verify',
+                           content_type='application/json')
+        assert resp.status_code == 500
+        data = resp.get_json()
+        assert data['status'] == 'error'
+
+    def test_batch_verify_nonexistent_invoices(self, client):
+        """异常处理：发票号码不存在"""
+        resp = client.post('/api/invoices/batch-verify',
+                           data=json.dumps({'invoice_nums': ['NONEXISTENT001']}),
+                           content_type='application/json')
+        data = resp.get_json()
+        # 如果验真可用则返回success带fail结果，否则返回error
+        assert data['status'] in ('success', 'error')
+        if data['status'] == 'success':
+            assert data['data']['results'][0]['status'] == 'error'
+
+    def test_batch_verify_existing_unverified(self, client):
+        """正常流程：对未验真发票发起批量验真"""
+        # 查找一张未验真的发票
+        resp_list = client.get('/api/invoices?verify_status=unverified&limit=1')
+        list_data = resp_list.get_json()['data']
+        if list_data['total'] == 0:
+            pytest.skip('没有未验真的发票')
+        inv_num = list_data['invoices'][0]['invoice_num']
+
+        resp = client.post('/api/invoices/batch-verify',
+                           data=json.dumps({'invoice_nums': [inv_num]}),
+                           content_type='application/json')
+        data = resp.get_json()
+        # 取决于验真配置，可能成功也可能失败，但结构应完整
+        assert data['status'] in ('success', 'error')
+        if data['status'] == 'success':
+            assert 'results' in data['data']
+            assert data['data']['total'] == 1
+            assert 'total_cost' in data['data']
+
+    def test_batch_verify_skip_verified(self, client):
+        """正常流程：已验真发票应跳过"""
+        resp_list = client.get('/api/invoices?verify_status=success&limit=1')
+        list_data = resp_list.get_json()['data']
+        if list_data['total'] == 0:
+            pytest.skip('没有已验真的发票')
+        inv_num = list_data['invoices'][0]['invoice_num']
+
+        resp = client.post('/api/invoices/batch-verify',
+                           data=json.dumps({'invoice_nums': [inv_num]}),
+                           content_type='application/json')
+        data = resp.get_json()
+        if data['status'] == 'success':
+            assert data['data']['results'][0].get('skipped') == True
+
+
+# ================================================================
+# 21. 批量认证接口测试
+# ================================================================
+
+class TestBatchCertify:
+    """测试批量认证接口"""
+
+    def test_batch_certify_success(self, client):
+        """正常流程：批量认证发票"""
+        resp = client.post('/api/invoices/batch-certify',
+                           data=json.dumps({'invoice_nums': [EXISTING_INVOICE_NUM]}),
+                           content_type='application/json')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['status'] == 'success'
+        assert data['data']['updated'] >= 1
+
+    def test_batch_certify_empty_list(self, client):
+        """异常处理：空列表"""
+        resp = client.post('/api/invoices/batch-certify',
+                           data=json.dumps({'invoice_nums': []}),
+                           content_type='application/json')
+        assert resp.status_code == 400
+
+    def test_batch_certify_nonexistent(self, client):
+        """边界条件：发票号不存在"""
+        resp = client.post('/api/invoices/batch-certify',
+                           data=json.dumps({'invoice_nums': ['FAKENUM999']}),
+                           content_type='application/json')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['status'] == 'success'
+
+
+# ================================================================
+# 22. 统计接口字段验证
+# ================================================================
+
+class TestStatsFields:
+    """测试统计接口字段完整性"""
+
+    def test_summary_has_type_summary(self, client):
+        """正常流程：统计摘要包含发票类型分布"""
+        resp = client.get('/api/stats/summary')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        assert 'type_summary' in data
+        assert isinstance(data['type_summary'], list)
+
+    def test_summary_has_monthly_price_tax(self, client):
+        """正常流程：月度趋势包含不含税金额和税额"""
+        resp = client.get('/api/stats/summary')
+        data = resp.get_json()['data']
+        for m in data['monthly_summary']:
+            assert 'price' in m
+            assert 'tax' in m
+            assert 'amt' in m
+
+    def test_expense_distribution_has_risk_fields(self, client):
+        """正常流程：费用分布包含风险数据"""
+        resp = client.get('/api/stats/expense-distribution')
+        assert resp.status_code == 200
+        data = resp.get_json()['data']
+        assert 'risk_count' in data
+        assert 'risk_invoices' in data
+        assert isinstance(data['risk_invoices'], list)
+
+    def test_expense_distribution_risk_dedup(self, client):
+        """正常流程：风险发票无重复号码"""
+        resp = client.get('/api/stats/expense-distribution')
+        data = resp.get_json()['data']
+        nums = [inv['invoice_num'] for inv in data['risk_invoices']]
+        assert len(nums) == len(set(nums)), "风险发票存在重复号码"

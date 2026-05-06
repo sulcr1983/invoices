@@ -54,7 +54,8 @@ def get_stats_summary():
             m['tax'] = round(m['tax'], 2)
 
         cursor.execute(f"""
-            SELECT invoice_type, COUNT(*) as cnt, COALESCE(SUM(total_amount),0) as amt
+            SELECT COALESCE(NULLIF(invoice_type,''), '未识别') as invoice_type,
+                   COUNT(*) as cnt, COALESCE(SUM(total_amount),0) as amt
             FROM records WHERE 1=1 {where} GROUP BY invoice_type ORDER BY cnt DESC
         """, params)
         type_cols = [desc[0] for desc in cursor.description]

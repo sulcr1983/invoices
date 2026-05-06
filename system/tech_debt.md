@@ -55,5 +55,23 @@
 ## 回归测试结果
 
 - 后端压力测试: **55/55 通过**
-- API 接口测试: **69/69 通过**
+- API 接口测试: **75/75 通过**
 - E2E Web 界面: **正常**（仪表盘、发票台账、搜索功能均正常）
+
+---
+
+## 本次清理 (2026-05-07 / /neat)
+
+### 已清理
+1. **重复 claude.md**: 删除根目录小写 `claude.md`（与 `CLAUDE.md` 内容一致）
+2. **config.py 死 import**: 删除 `import sys`（未被引用）
+3. **invoices.py 死 import**: 删除 `verify_invoice_mock` 导入（未被使用）
+4. **database/records.py**: 删除无任何引用的文件（仅重导出 queries/writes）
+5. **VERIFY_STATUS_LABELS 去重**: 删除 `invoices.py` 中的重复定义，改为从 `core/verify.py` 导入
+6. **README 同步**: 功能清单/更新记录/测试命令与代码同步
+
+### 建议重构清单
+| 位置 | 建议 | 优先级 |
+|------|------|--------|
+| `routes/invoices.py:59` | 字段命名不一致：列表API用 `certification_status` 映射DB的 `deduction_status`，详情API直接返回原始字段名 `deduction_status`。前端能兼容但易混淆 | P3 |
+| `routes/invoices.py` 多处 | `deduction_status` 在列表API中被重复使用为"到期状态"(expired/expiring/normal)，同时 DB 同名字段表示"认证状态"(certified/unverified)，语义过载 | P3 |

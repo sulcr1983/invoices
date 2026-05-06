@@ -42,7 +42,7 @@ def get_dashboard():
             month_str = f"{y:04d}-{m:02d}"
             conn = db_manager._get_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0), COALESCE(SUM(price_without_tax),0), COALESCE(SUM(tax_amount),0) FROM records WHERE date IS NOT NULL AND date != '' AND strftime('%Y-%m', date) = ?", (month_str,))
+            cursor.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0), COALESCE(SUM(price_without_tax),0), COALESCE(SUM(tax_amount),0) FROM records WHERE strftime('%Y-%m', process_time) = ?", (month_str,))
             row = cursor.fetchone()
             conn.close()
             monthly_trend.append({

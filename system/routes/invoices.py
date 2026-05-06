@@ -53,7 +53,7 @@ def get_invoices():
                 'remark': record.get('remark'),
                 'invoice_type': record.get('invoice_type'),
                 'verify_status': record.get('verify_status', 'unverified'),
-                'deduction_status': None,
+                'deadline_status': None,
                 'deduction_deadline': None,
                 'days_remaining': None,
                 'certification_status': record.get('deduction_status', 'unverified'),
@@ -73,11 +73,11 @@ def get_invoices():
                     remaining = (deadline - datetime.now()).days
                     inv['days_remaining'] = remaining
                     if remaining < 0:
-                        inv['deduction_status'] = 'expired'
+                        inv['deadline_status'] = 'expired'
                     elif remaining <= 30:
-                        inv['deduction_status'] = 'expiring'
+                        inv['deadline_status'] = 'expiring'
                     else:
-                        inv['deduction_status'] = 'normal'
+                        inv['deadline_status'] = 'normal'
                 except Exception:
                     pass
             invoices.append(inv)
@@ -321,8 +321,9 @@ def get_sellers():
 def verify_single_invoice(invoice_num):
     try:
         from ..core.verify import (
-            verify_invoice_baidu, verify_invoice_mock,
-            is_verify_available, format_verify_result
+            verify_invoice_baidu,
+            is_verify_available, format_verify_result,
+            VERIFY_STATUS_LABELS
         )
         from ..config import VERIFY_ENABLED, VERIFY_COST_PER_CALL
 
@@ -373,15 +374,6 @@ def verify_single_invoice(invoice_num):
         }
     except Exception as e:
         return api_error(str(e))
-
-
-VERIFY_STATUS_LABELS = {
-    'unverified': '待查验',
-    'success': '查验通过',
-    'failed': '查验失败',
-    'voided': '已作废',
-    'red': '红冲发票',
-}
 
 
 @invoices_bp.route('/api/verify/config', methods=['GET'])
