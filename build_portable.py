@@ -113,10 +113,6 @@ def step5_copy_app():
     shutil.copytree(system_src, system_dst, ignore=ignore_patterns)
     print(f'  已复制: system/ -> app/system/')
 
-    api_server = os.path.join(PROJECT_ROOT, 'api_server.py')
-    shutil.copy2(api_server, os.path.join(APP_DIR, 'api_server.py'))
-    print(f'  已复制: api_server.py')
-
     env_example = os.path.join(PROJECT_ROOT, '.env.example')
     if os.path.exists(env_example):
         shutil.copy2(env_example, os.path.join(PORTABLE_DIR, '.env.example'))

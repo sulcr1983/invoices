@@ -20,15 +20,24 @@ def get_invoices():
         invoice_type = request.args.get('invoice_type')
         tax_rate = request.args.get('tax_rate')
         push_status = request.args.get('push_status')
+        verify_status = request.args.get('verify_status')
+        risk_flags = request.args.get('risk_flags')
+        sort_field = request.args.get('sort_field', '')
+        sort_dir = request.args.get('sort_dir', 'desc')
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
         offset = (page - 1) * limit
+
+        order_by_map = {'date': 'date', 'amount': 'total_amount'}
+        order_by = order_by_map.get(sort_field, 'process_time')
+        order_dir = 'ASC' if sort_dir == 'asc' else 'DESC'
 
         records, total = db_manager.query_records(
             keyword=keyword, date_from=date_from, date_to=date_to,
             seller=seller, amt_from=amt_from, amt_to=amt_to,
             invoice_type=invoice_type, tax_rate=tax_rate,
-            push_status=push_status,
+            push_status=push_status, verify_status=verify_status, risk_flags=risk_flags,
+            order_by=order_by, order_dir=order_dir,
             limit=limit, offset=offset
         )
 
@@ -130,6 +139,114 @@ def get_duplicate_invoices():
         return api_error(str(e))
 
 
+@invoices_bp.route('/api/invoices/batch-certify', methods=['POST'])
+def batch_certify_invoices():
+    try:
+        data = request.get_json()
+        invoice_nums = data.get('invoice_nums', [])
+        certification_date = data.get('certification_date')
+
+        if not invoice_nums or not isinstance(invoice_nums, list):
+            return {'status': 'error', 'message': '请提供发票号码列表'}, 400
+
+        updated = db_manager.batch_update_deduction_status(
+            invoice_nums, 'certified', certification_date
+        )
+        return {
+            'status': 'success',
+            'data': {
+                'updated': updated,
+                'total': len(invoice_nums)
+            },
+            'message': f'成功认证 {updated} 张发票'
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
+@invoices_bp.route('/api/invoices/batch-verify', methods=['POST'])
+def batch_verify_invoices():
+    try:
+        from ..core.verify import (
+            verify_invoice_baidu, is_verify_available, format_verify_result
+        )
+        from ..config import VERIFY_ENABLED, VERIFY_COST_PER_CALL
+
+        data = request.get_json()
+        invoice_nums = data.get('invoice_nums', [])
+
+        if not invoice_nums or not isinstance(invoice_nums, list):
+            return {'status': 'error', 'message': '请提供发票号码列表'}, 400
+
+        if not VERIFY_ENABLED:
+            return {'status': 'error', 'message': '验真功能未启用'}, 403
+
+        if not is_verify_available():
+            return {'status': 'error', 'message': '百度API配置不完整'}, 403
+
+        results = []
+        success_count = 0
+        fail_count = 0
+        skip_count = 0
+        total_cost = 0
+
+        for invoice_num in invoice_nums:
+            record = db_manager.get_record_by_invoice_num(invoice_num)
+            if not record:
+                results.append({
+                    'invoice_num': invoice_num,
+                    'status': 'error',
+                    'message': '发票不存在'
+                })
+                fail_count += 1
+                continue
+
+            if record.get('verify_status') not in ('unverified', '', None):
+                results.append({
+                    'invoice_num': invoice_num,
+                    'verify_status': record.get('verify_status'),
+                    'message': '已查验，跳过',
+                    'skipped': True
+                })
+                skip_count += 1
+                continue
+
+            result = verify_invoice_baidu(record)
+            db_manager.update_verify_status(
+                invoice_num,
+                result.get('status'),
+                format_verify_result(result)
+            )
+
+            is_ok = result.get('status') == 'success'
+            results.append({
+                'invoice_num': invoice_num,
+                'verify_status': result.get('status'),
+                'message': result.get('message', ''),
+                'skipped': False
+            })
+            if is_ok:
+                success_count += 1
+            else:
+                fail_count += 1
+            total_cost += VERIFY_COST_PER_CALL
+
+        return {
+            'status': 'success',
+            'data': {
+                'results': results,
+                'total': len(invoice_nums),
+                'success': success_count,
+                'failed': fail_count,
+                'skipped': skip_count,
+                'total_cost': round(total_cost, 2)
+            },
+            'message': f'验真完成：成功 {success_count} 张，失败 {fail_count} 张，跳过 {skip_count} 张'
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
 @invoices_bp.route('/api/invoices/<invoice_num>', methods=['GET'])
 def get_invoice_detail(invoice_num):
     try:
@@ -196,31 +313,6 @@ def get_sellers():
     try:
         sellers = db_manager.get_distinct_values('seller')
         return {'status': 'success', 'data': sellers}
-    except Exception as e:
-        return api_error(str(e))
-
-
-@invoices_bp.route('/api/invoices/batch-certify', methods=['POST'])
-def batch_certify_invoices():
-    try:
-        data = request.get_json()
-        invoice_nums = data.get('invoice_nums', [])
-        certification_date = data.get('certification_date')
-
-        if not invoice_nums or not isinstance(invoice_nums, list):
-            return {'status': 'error', 'message': '请提供发票号码列表'}, 400
-
-        updated = db_manager.batch_update_deduction_status(
-            invoice_nums, 'certified', certification_date
-        )
-        return {
-            'status': 'success',
-            'data': {
-                'updated': updated,
-                'total': len(invoice_nums)
-            },
-            'message': f'成功认证 {updated} 张发票'
-        }
     except Exception as e:
         return api_error(str(e))
 

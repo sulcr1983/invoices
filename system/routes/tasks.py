@@ -58,15 +58,30 @@ _pipeline_result = {'running': False, 'stats': None, 'error': None}
 
 def _run_pipeline_async():
     try:
-        from ..core.pipeline import run_pipeline
+        from ..core.pipeline import run_pipeline, logger as pipeline_logger
         _pipeline_result['running'] = True
         _pipeline_result['stats'] = None
         _pipeline_result['error'] = None
 
+        class LogCaptureHandler(logging.Handler):
+            def emit(self, record):
+                level_map = {logging.WARNING: 'warning', logging.ERROR: 'error', logging.CRITICAL: 'error'}
+                lvl = level_map.get(record.levelno, 'info')
+                msg = self.format(record)
+                add_log(msg, lvl)
+
+        import logging
+        handler = LogCaptureHandler()
+        handler.setFormatter(logging.Formatter('%(message)s'))
+        pipeline_logger.addHandler(handler)
+
         add_log('系统就绪，等待开始处理发票...', 'info')
         add_log('开始处理发票...', 'info')
 
-        stats, batch_id = run_pipeline()
+        try:
+            stats, batch_id = run_pipeline()
+        finally:
+            pipeline_logger.removeHandler(handler)
 
         if stats['success'] > 0:
             add_log(f'成功识别并归档发票：{stats["success"]} 张', 'success')
@@ -74,13 +89,19 @@ def _run_pipeline_async():
             add_log(f'检测到重复发票：{stats["duplicate"]} 张', 'warning')
         if stats['failed'] > 0:
             add_log(f'识别失败发票：{stats["failed"]} 张', 'error')
+            for f in stats.get('failed_files', []):
+                reason_cn = err_to_cn(f.get('reason', ''))
+                f['reason_cn'] = reason_cn
+                add_log(f'处理失败: {f["filename"]} — {reason_cn}', 'error')
 
         add_log('处理流程结束', 'info')
         _pipeline_result['stats'] = stats
+        _pipeline_result['error'] = None
         _pipeline_result['running'] = False
     except Exception as e:
-        add_log(f'处理异常：{err_to_cn(str(e))}', 'error')
-        _pipeline_result['error'] = str(e)
+        cn_msg = err_to_cn(str(e))
+        add_log(f'处理异常：{cn_msg}', 'error')
+        _pipeline_result['error'] = cn_msg
         _pipeline_result['running'] = False
 
 

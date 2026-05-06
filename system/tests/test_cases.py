@@ -10,13 +10,7 @@ import tempfile
 import traceback
 from pathlib import Path
 
-_THIS_DIR = str(Path(__file__).resolve().parent)
-_SYSTEM_DIR = str(Path(__file__).resolve().parent.parent)
 _PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
-if _THIS_DIR not in sys.path:
-    sys.path.insert(0, _THIS_DIR)
-if _SYSTEM_DIR not in sys.path:
-    sys.path.insert(0, _SYSTEM_DIR)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 

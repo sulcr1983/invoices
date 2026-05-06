@@ -10,7 +10,7 @@ class QueriesMixin:
     def query_records(self, invoice_num=None, seller=None, buyer=None,
                       date_from=None, date_to=None, invoice_type=None,
                       push_status=None, keyword=None, tax_rate=None,
-                      amt_from=None, amt_to=None,
+                      amt_from=None, amt_to=None, verify_status=None, risk_flags=None,
                       order_by="process_time", order_dir="DESC",
                       limit=None, offset=None):
         with self.connection() as conn:
@@ -48,6 +48,11 @@ class QueriesMixin:
             if tax_rate:
                 conditions.append("tax_rate LIKE ?")
                 params.append(f"%{tax_rate}%")
+            if verify_status:
+                conditions.append("verify_status = ?")
+                params.append(verify_status)
+            if risk_flags:
+                conditions.append("risk_flags IS NOT NULL AND risk_flags != ''")
             if keyword:
                 conditions.append("(invoice_num LIKE ? OR seller LIKE ? OR buyer LIKE ? OR item LIKE ?)")
                 kw = f"%{keyword}%"

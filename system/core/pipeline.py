@@ -146,13 +146,13 @@ def run_pipeline():
 
     if not pending_files:
         logger.info("待识别发票 文件夹为空，无需处理")
-        return {'success': 0, 'duplicate': 0, 'failed': 0}, batch_id
+        return {'success': 0, 'duplicate': 0, 'failed': 0, 'failed_files': []}, batch_id
 
     logger.info(f"发现 {len(pending_files)} 个文件待处理")
     logger.info("执行文件级重复预检查...")
 
     files_to_skip = []
-    stats = {'success': 0, 'duplicate': 0, 'failed': 0}
+    stats = {'success': 0, 'duplicate': 0, 'failed': 0, 'failed_files': []}
     for filename in pending_files:
         file_path = str(Path(INPUT_DIR) / filename)
         file_md5 = calculate_file_md5(file_path)
@@ -190,7 +190,7 @@ def run_pipeline():
     logger.info(f"预检查后剩余 {len(pending_files)} 个文件待处理")
 
     if not pending_files:
-        return {'success': 0, 'duplicate': len(files_to_skip), 'failed': 0}, batch_id
+        return {'success': 0, 'duplicate': len(files_to_skip), 'failed': 0, 'failed_files': []}, batch_id
 
     for filename in pending_files:
         file_path = str(Path(INPUT_DIR) / filename)
@@ -210,6 +210,7 @@ def run_pipeline():
             logger.error(f"文件移入processing失败: {filename}, 错误: {e}")
             db_manager.release_file_lock(lock_key, PROCESS_INSTANCE_ID)
             stats['failed'] += 1
+            stats['failed_files'].append({'filename': filename, 'reason': f'move_error: {e}'})
             continue
 
         try:
@@ -262,8 +263,12 @@ def run_pipeline():
                     except Exception:
                         pass
                     stats['failed'] += 1
+                    stats['failed_files'].append({'filename': filename, 'reason': 'archive_error'})
             elif status == 'duplicate':
                 logger.info(f"文件重复: {filename}")
+            else:
+                error_reason = result or 'unknown_error'
+                stats['failed_files'].append({'filename': filename, 'reason': error_reason})
 
             stats[status] = stats.get(status, 0) + 1
         finally:

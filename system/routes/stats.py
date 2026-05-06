@@ -1,5 +1,4 @@
 from flask import Blueprint, request
-from datetime import datetime, timedelta
 
 from .shared import db_manager, api_error
 
@@ -130,7 +129,7 @@ def get_expense_distribution():
             })
 
         cursor.execute(f"""
-            SELECT COUNT(*) FROM records WHERE risk_flags IS NOT NULL AND risk_flags != '' {where.replace('1=1 AND', '')}
+            SELECT COUNT(DISTINCT invoice_num) FROM records WHERE risk_flags IS NOT NULL AND risk_flags != ''{where}
         """, params if where else [])
         risk_count = cursor.fetchone()[0]
 
@@ -141,7 +140,11 @@ def get_expense_distribution():
         """)
         risk_rows = cursor.fetchall()
         risk_invoices = []
+        seen_nums = set()
         for row in risk_rows:
+            if row[0] in seen_nums:
+                continue
+            seen_nums.add(row[0])
             from ..core.risk_checker import get_risk_flag_labels
             risk_invoices.append({
                 'invoice_num': row[0],
@@ -176,50 +179,6 @@ def get_input_tax_summary():
         return {
             'status': 'success',
             'data': result
-        }
-    except Exception as e:
-        return api_error(str(e))
-
-
-@stats_bp.route('/api/stats/deduction-alert', methods=['GET'])
-def get_deduction_alert():
-    try:
-        conn = db_manager._get_connection()
-        cursor = conn.cursor()
-        now = datetime.now()
-        cursor.execute("""
-            SELECT invoice_num, seller, date, total_amount, invoice_type
-            FROM records
-            WHERE invoice_type LIKE '%专%' AND date IS NOT NULL AND date != ''
-            ORDER BY date ASC
-        """)
-        col_names = [desc[0] for desc in cursor.description]
-        rows = cursor.fetchall()
-        expired = []
-        expiring = []
-        for row in rows:
-            rec = dict(zip(col_names, row))
-            try:
-                d = datetime.strptime(rec['date'], '%Y-%m-%d')
-                deadline = d + timedelta(days=360)
-                remaining = (deadline - now).days
-                rec['deduction_deadline'] = deadline.strftime('%Y-%m-%d')
-                rec['days_remaining'] = remaining
-                if remaining < 0:
-                    expired.append(rec)
-                elif remaining <= 30:
-                    expiring.append(rec)
-            except Exception:
-                pass
-        conn.close()
-        return {
-            'status': 'success',
-            'data': {
-                'expired_count': len(expired),
-                'expiring_count': len(expiring),
-                'expired': expired[:20],
-                'expiring': expiring[:20]
-            }
         }
     except Exception as e:
         return api_error(str(e))

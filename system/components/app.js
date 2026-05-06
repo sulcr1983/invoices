@@ -56,7 +56,7 @@ const API_BASE = '/api';
             document.getElementById('generic-modal').classList.remove('show');
         }
 
-        function showSuccessModal(title, message, stats) {
+        function showSuccessModal(title, message, stats, failedFiles) {
             document.getElementById('success-title').textContent = title;
             document.getElementById('success-message').textContent = message;
             const statsEl = document.getElementById('success-stats');
@@ -76,11 +76,38 @@ const API_BASE = '/api';
                     statsEl.appendChild(div);
                 });
             }
+            var failuresEl = document.getElementById('success-failures');
+            if (failuresEl) {
+                failuresEl.innerHTML = '';
+                if (failedFiles && failedFiles.length > 0) {
+                    var fhtml = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;text-align:left;">' +
+                        '<p style="font-size:12px;font-weight:600;color:#ef4444;margin-bottom:8px;"><i class="fa fa-exclamation-triangle"></i> 失败详情</p>';
+                    failedFiles.forEach(function(f) {
+                        var reason = f.reason_cn || f.reason || '未知错误';
+                        fhtml += '<div style="padding:8px 10px;background:#fef2f2;border-radius:6px;margin-bottom:6px;">' +
+                            '<p style="font-size:11px;font-weight:500;color:#dc2626;">' + escapeHtml(f.filename) + '</p>' +
+                            '<p style="font-size:10px;color:#ef4444;margin-top:2px;">' + escapeHtml(reason) + '</p></div>';
+                    });
+                    fhtml += '</div>';
+                    failuresEl.innerHTML = fhtml;
+                }
+            }
             document.getElementById('success-modal').classList.add('show');
         }
 
         function closeSuccessModal() {
             document.getElementById('success-modal').classList.remove('show');
+            if (window._pendingFailedProcessing) {
+                window._pendingFailedProcessing = false;
+                // Auto-expand log panel when processing had failures
+                var logContent = document.getElementById('log-panel-content');
+                if (logContent && logContent.style.display === 'none') {
+                    toggleLogPanel();
+                }
+                // Switch to error filter
+                var errorBtn = document.querySelector('.log-filter-btn[data-level="error"]');
+                if (errorBtn) errorBtn.click();
+            }
         }
 
         function switchPage(pageId) {
@@ -165,7 +192,7 @@ const API_BASE = '/api';
                 container.innerHTML = '<div class="text-text-muted text-sm text-center py-6">暂无处理记录</div>';
                 return;
             }
-            const recent = invoices.slice(0, 3);
+            const recent = invoices.slice(0, 5);
             let html = '';
             recent.forEach(function(inv) {
                 var statusTag = '';
@@ -178,11 +205,11 @@ const API_BASE = '/api';
                 } else {
                     statusTag = '<span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;background:#f1f5f9;color:#94a3b8;">待处理</span>';
                 }
-                html += '<div class="result-card flex items-center gap-3 border-b border-border-light last:border-b-0">' +
-                    '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#f5f3ff;"><i class="fa fa-file-text-o" style="color:#6366f1;font-size:14px;"></i></div>' +
-                    '<div class="flex-1 min-w-0"><p class="text-sm font-medium text-text-primary truncate">' + escapeHtml(inv.seller) + '</p><p class="text-xs text-text-muted truncate">' + escapeHtml(inv.invoice_num) + ' · ' + escapeHtml(inv.date) + '</p></div>' +
-                    statusTag +
-                    '<span class="text-sm font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</span></div>';
+                html += '<div class="result-card flex items-center gap-3 border-b border-border-light last:border-b-0">';
+                html += '<div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="font-mono font-medium" style="font-size:11px;color:var(--color-primary);">' + escapeHtml(inv.invoice_num || '') + '</span>' + statusTag + '</div>';
+                html += '<p class="text-text-muted text-xs truncate mt-0.5">' + escapeHtml(inv.seller || '') + ' · ' + escapeHtml(inv.item || '') + '</p></div>';
+                html += '<div class="text-right flex-shrink-0"><p class="font-semibold font-mono" style="font-size:12px;color:#1e293b;">¥' + formatMoney(inv.total_amount) + '</p>';
+                html += '<p class="text-text-muted text-xs">' + escapeHtml(inv.date || '') + '</p></div></div>';
             });
             container.innerHTML = html;
         }
@@ -194,30 +221,13 @@ const API_BASE = '/api';
             if (!data) { statEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '-'; }); return; }
             document.getElementById('stat-pending').textContent = data.directory_status.pending || 0;
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
+            var amtEl = document.getElementById('stat-archived-amt');
+            if (amtEl) amtEl.textContent = '¥' + formatMoney(data.stats.total_amt || 0);
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
             document.getElementById('hero-pending-count').textContent = data.directory_status.pending || 0;
             loadDashboardAlerts();
-            loadDeductionAlertCount();
             renderTrendChart(data);
             renderRecentResults(data);
-        }
-
-        async function loadDeductionAlertCount() {
-            var result = await apiRequest('/stats/deduction-alert');
-            if (!result) return;
-            var expired = result.expired_count || 0;
-            var expiring = result.expiring_count || 0;
-            var total = expired + expiring;
-            var el = document.getElementById('stat-deduction-alert');
-            if (el) {
-                if (total > 0) {
-                    el.textContent = total + ' 张';
-                    el.style.color = expired > 0 ? '#dc2626' : '#f59e0b';
-                } else {
-                    el.textContent = '0';
-                    el.style.color = '#10b981';
-                }
-            }
         }
 
         async function loadDashboardAlerts() {
@@ -234,10 +244,6 @@ const API_BASE = '/api';
                 if (vpEl) vpEl.textContent = verifyPending;
                 var cpEl = document.getElementById('stat-certify-pending');
                 if (cpEl) cpEl.textContent = certifyPending;
-                var todoVerify = document.getElementById('todo-verify');
-                if (todoVerify) todoVerify.textContent = verifyPending + ' 张待验真';
-                var todoCertify = document.getElementById('todo-certify');
-                if (todoCertify) todoCertify.textContent = certifyPending + ' 张待认证';
             } catch(e) {}
 
             try {
@@ -245,48 +251,8 @@ const API_BASE = '/api';
                 if (distResult) {
                     var raEl = document.getElementById('stat-risk-alert');
                     if (raEl) raEl.textContent = distResult.risk_count || 0;
-                    var todoRisk = document.getElementById('todo-risk');
-                    if (todoRisk) todoRisk.textContent = (distResult.risk_count || 0) + ' 条风险预警';
-                    var todoSummary = document.getElementById('todo-summary');
-                    var total = (parseInt(document.getElementById('stat-verify-pending').textContent) || 0) + (parseInt(document.getElementById('stat-certify-pending').textContent) || 0) + (distResult.risk_count || 0);
-                    if (todoSummary) todoSummary.textContent = total > 0 ? '共 ' + total + ' 项待处理' : '暂无待办事项';
                 }
             } catch(e) {}
-        }
-
-        async function loadDeductionAlert() {
-            var result = await apiRequest('/stats/deduction-alert');
-            if (!result) return;
-            var expired = result.expired || [];
-            var expiring = result.expiring || [];
-            var html = '<div style="max-height:400px;overflow-y:auto;">';
-            if (expired.length > 0) {
-                html += '<div class="mb-4"><h4 style="color:#dc2626;font-size:13px;font-weight:600;margin-bottom:8px;"><i class="fa fa-times-circle"></i> 已过期（不可抵扣）</h4>';
-                expired.forEach(function(inv) {
-                    html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #fef2f2;font-size:12px;">';
-                    html += '<span class="font-mono">' + escapeHtml(inv.invoice_num) + '</span>';
-                    html += '<span>' + escapeHtml(inv.seller || '') + '</span>';
-                    html += '<span style="color:#dc2626;">过期' + Math.abs(inv.days_remaining) + '天</span>';
-                    html += '</div>';
-                });
-                html += '</div>';
-            }
-            if (expiring.length > 0) {
-                html += '<div><h4 style="color:#d97706;font-size:13px;font-weight:600;margin-bottom:8px;"><i class="fa fa-exclamation-circle"></i> 即将到期（30天内）</h4>';
-                expiring.forEach(function(inv) {
-                    html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #fffbeb;font-size:12px;">';
-                    html += '<span class="font-mono">' + escapeHtml(inv.invoice_num) + '</span>';
-                    html += '<span>' + escapeHtml(inv.seller || '') + '</span>';
-                    html += '<span style="color:#d97706;">剩' + inv.days_remaining + '天</span>';
-                    html += '</div>';
-                });
-                html += '</div>';
-            }
-            if (expired.length === 0 && expiring.length === 0) {
-                html += '<div class="text-center py-6"><i class="fa fa-check-circle text-2xl" style="color:#10b981;"></i><p class="text-sm mt-2" style="color:#10b981;">暂无到期预警</p></div>';
-            }
-            html += '</div>';
-            showModal('认证到期预警', html);
         }
 
         async function loadSellers() {
@@ -296,6 +262,11 @@ const API_BASE = '/api';
             sel.innerHTML = '<option value="">全部</option>';
             data.forEach(function(s) { var opt = document.createElement('option'); opt.value = s; opt.textContent = s; sel.appendChild(opt); });
         }
+
+        var _sortField = '';
+        var _sortDir = 'desc';
+        var _quickFilter = 'all';
+        var _lastLogCount = 0;
 
         var selectedInvoices = new Set();
 
@@ -312,15 +283,23 @@ const API_BASE = '/api';
         }
 
         function updateBatchCertifyButton() {
-            var btn = document.getElementById('btn-batch-certify');
+            var btnVerify = document.getElementById('btn-batch-verify');
+            var btnCertify = document.getElementById('btn-batch-certify');
             var btnAttrib = document.getElementById('btn-batch-attribution');
-            if (!btn) return;
+            if (!btnCertify) return;
             if (selectedInvoices.size > 0) {
-                btn.style.display = '';
-                btn.innerHTML = '<i class="fa fa-check-circle-o"></i> 批量标记已认证 (' + selectedInvoices.size + ')';
+                if (btnVerify && verifyConfig.enabled && verifyConfig.available) {
+                    btnVerify.style.display = '';
+                    btnVerify.innerHTML = '<i class="fa fa-search"></i> 批量验真 (' + selectedInvoices.size + ')';
+                } else if (btnVerify) {
+                    btnVerify.style.display = 'none';
+                }
+                btnCertify.style.display = '';
+                btnCertify.innerHTML = '<i class="fa fa-check-circle-o"></i> 批量标记已认证 (' + selectedInvoices.size + ')';
                 if (btnAttrib) { btnAttrib.style.display = ''; btnAttrib.innerHTML = '<i class="fa fa-tag"></i> 批量设置归属 (' + selectedInvoices.size + ')'; }
             } else {
-                btn.style.display = 'none';
+                if (btnVerify) btnVerify.style.display = 'none';
+                btnCertify.style.display = 'none';
                 if (btnAttrib) btnAttrib.style.display = 'none';
             }
         }
@@ -332,6 +311,52 @@ const API_BASE = '/api';
                 selectedInvoices.delete(checkbox.dataset.invoice);
             }
             updateBatchCertifyButton();
+            updateSelectedInfo();
+        }
+
+        function updateSelectedInfo() {
+            var el = document.getElementById('selected-info');
+            if (!el) return;
+            if (selectedInvoices.size > 0) {
+                el.style.display = '';
+                el.textContent = '已选 ' + selectedInvoices.size + ' 张';
+            } else if (_quickFilter !== 'all') {
+                // keep filter indicator visible (set by applyQuickFilter)
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        function toggleSort(field) {
+            if (_sortField === field) {
+                _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                _sortField = field;
+                _sortDir = field === 'date' ? 'desc' : 'desc';
+            }
+            var indicators = {'date': 'sort-indicator-date', 'amount': 'sort-indicator-amount'};
+            for (var key in indicators) {
+                var el = document.getElementById(indicators[key]);
+                if (el) el.textContent = (key === _sortField) ? (_sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+            }
+            loadInvoices(1);
+        }
+
+        function applyQuickFilter(filter) {
+            _quickFilter = filter;
+            document.querySelectorAll('.inv-filter-pill').forEach(function(el) {
+                el.classList.toggle('active', el.dataset.filter === filter);
+            });
+            var filterLabels = {'all':'全部','month':'本月','quarter':'近三月','unverified':'未验真','risk':'高风险'};
+            var infoEl = document.getElementById('selected-info');
+            if (filter !== 'all' && infoEl) {
+                infoEl.style.display = '';
+                infoEl.textContent = '筛选: ' + (filterLabels[filter] || filter);
+            } else if (infoEl) {
+                infoEl.style.display = 'none';
+                infoEl.textContent = '';
+            }
+            loadInvoices(1);
         }
 
         async function batchCertify() {
@@ -445,6 +470,7 @@ const API_BASE = '/api';
                 verifyConfig.available = result.available;
                 verifyConfig.cost = result.cost_per_call;
             }
+            updateBatchCertifyButton();
         }
 
         function showVerifyConfirm(invoiceNum) {
@@ -528,6 +554,69 @@ const API_BASE = '/api';
             }
         }
 
+        /* ---- 批量验真 ---- */
+        function batchVerifyFromList() {
+            if (selectedInvoices.size === 0) return;
+            if (!verifyConfig.enabled || !verifyConfig.available) {
+                showToast('验真功能未启用或API未配置', 'error');
+                return;
+            }
+            document.getElementById('batch-verify-count').textContent = selectedInvoices.size + ' 张';
+            document.getElementById('batch-verify-cost').textContent = '¥' + (selectedInvoices.size * verifyConfig.cost).toFixed(2);
+            document.getElementById('batch-verify-confirm-modal').classList.add('show');
+        }
+
+        function closeBatchVerifyConfirm() {
+            document.getElementById('batch-verify-confirm-modal').classList.remove('show');
+        }
+
+        async function confirmBatchVerify() {
+            closeBatchVerifyConfirm();
+            var nums = Array.from(selectedInvoices);
+            selectedInvoices.clear();
+            updateBatchCertifyButton();
+
+            showToast('正在批量验真，请稍候...', 'info');
+            var result = await apiRequest('/invoices/batch-verify', 'POST', {invoice_nums: nums});
+            if (!result) return;
+
+            var d = result.data || {};
+            var results = d.results || [];
+
+            var successCount = 0, failCount = 0, skipCount = 0;
+            results.forEach(function(r) {
+                if (r.skipped) skipCount++;
+                else if (r.verify_status === 'success') successCount++;
+                else failCount++;
+            });
+
+            document.getElementById('batch-verify-result-summary').textContent =
+                '共 ' + d.total + ' 张 · 成功 ' + successCount + ' · 失败 ' + failCount + ' · 跳过 ' + skipCount + ' · 费用 ¥' + (d.total_cost || 0).toFixed(2);
+
+            var listHtml = '';
+            results.forEach(function(r) {
+                var icon = r.skipped ? '<i class="fa fa-minus-circle" style="color:#94a3b8;"></i>'
+                    : r.verify_status === 'success' ? '<i class="fa fa-check-circle" style="color:#10b981;"></i>'
+                    : '<i class="fa fa-times-circle" style="color:#ef4444;"></i>';
+                var label = r.skipped ? '已跳过'
+                    : r.verify_status === 'success' ? '通过'
+                    : '失败';
+                listHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--color-border-light);">';
+                listHtml += icon;
+                listHtml += '<span class="font-mono text-sm text-text-primary flex-1">' + escapeHtml(r.invoice_num) + '</span>';
+                listHtml += '<span class="text-xs" style="color:#94a3b8;">' + label + '</span>';
+                listHtml += '</div>';
+            });
+            document.getElementById('batch-verify-result-list').innerHTML = listHtml;
+            document.getElementById('batch-verify-result-modal').classList.add('show');
+
+            loadInvoices(invoiceListPage);
+        }
+
+        function closeBatchVerifyResult() {
+            document.getElementById('batch-verify-result-modal').classList.remove('show');
+        }
+
         async function loadInvoices(page) {
             invoiceListPage = page;
             var invTbody = document.getElementById('invoices-body');
@@ -549,6 +638,16 @@ const API_BASE = '/api';
             if (amtTo) params.append('amt_to', amtTo);
             if (invoiceType) params.append('invoice_type', invoiceType);
             if (pushStatus) params.append('push_status', pushStatus);
+            if (_sortField) { params.append('sort_field', _sortField); params.append('sort_dir', _sortDir); }
+            if (_quickFilter === 'unverified') params.append('verify_status', 'unverified');
+            if (_quickFilter === 'risk') params.append('risk_flags', 'yes');
+            if (_quickFilter === 'month') {
+                var d = new Date(); params.append('date_from', d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01');
+            }
+            if (_quickFilter === 'quarter') {
+                var d = new Date(); d.setMonth(d.getMonth()-3);
+                params.append('date_from', d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01');
+            }
             params.append('page', page);
             params.append('limit', PAGE_LIMIT);
             var data = await apiRequest('/invoices?' + params.toString());
@@ -560,6 +659,7 @@ const API_BASE = '/api';
             } else {
                 data.invoices.forEach(function(inv) {
                     var tr = document.createElement('tr');
+                    if (inv.risk_flags) tr.className = 'risk-row';
                     var deductionTag = '';
                     if (inv.deduction_status === 'expired') {
                         deductionTag = ' <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fef2f2;color:#dc2626;">已过期</span>';
@@ -582,9 +682,7 @@ const API_BASE = '/api';
                         '<td class="text-right font-semibold" style="color:#6366f1">' + formatMoney(inv.total_amount) + '</td>' +
                         '<td>' + renderVerifyBadge(inv.verify_status, inv.invoice_num) + '</td>' +
                         '<td>' + (attributionTags || '<span class="text-text-muted text-xs">-</span>') + '</td>' +
-                        '<td class="text-center"><div class="inline-flex items-center gap-1"><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button>' +
-                        (inv.verify_status === 'unverified' && verifyConfig.enabled ? '<button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="btn-quick-verify" style="display:none;font-size:11px;color:#ef4444;background:none;border:none;cursor:pointer;padding:2px 4px;" title="快速验真"><i class="fa fa-search"></i></button>' : '') +
-                        '</div></td>';
+                        '<td class="text-center"><button data-invoice="' + escapeHtml(inv.invoice_num) + '" class="text-sm hover:underline font-medium btn-detail" style="color:#6366f1">详情</button></td>';
                     tbody.appendChild(tr);
                 });
             }
@@ -626,7 +724,11 @@ const API_BASE = '/api';
             document.getElementById('detail-invoice-num').textContent = safeText(data.invoice_num);
             document.getElementById('detail-invoice-code').textContent = safeText(data.invoice_code);
             document.getElementById('detail-date').textContent = safeText(data.date);
-            document.getElementById('detail-invoice-type').textContent = safeText(data.invoice_type);
+            var typeBadge = document.getElementById('detail-type-badge');
+            if (typeBadge) {
+                var typeText = data.invoice_type && data.invoice_type.trim() ? data.invoice_type : '未识别';
+                typeBadge.textContent = typeText;
+            }
             document.getElementById('detail-seller').textContent = safeText(data.seller);
             document.getElementById('detail-seller-tax-id').textContent = safeText(data.seller_tax_id);
             document.getElementById('detail-buyer').textContent = safeText(data.buyer);
@@ -646,6 +748,8 @@ const API_BASE = '/api';
             document.getElementById('btn-save-all').dataset.invoiceNum = data.invoice_num;
             var verifyBadge = document.getElementById('detail-verify-badge');
             if (verifyBadge) verifyBadge.innerHTML = renderVerifyBadge(data.verify_status || 'unverified');
+            var certBadge = document.getElementById('detail-cert-badge');
+            if (certBadge) certBadge.innerHTML = renderCertBadge(data.deduction_status || 'unverified');
             var verifyBtn = document.getElementById('btn-verify-invoice');
             if (verifyBtn) {
                 verifyBtn.dataset.invoiceNum = data.invoice_num || '';
@@ -725,6 +829,8 @@ const API_BASE = '/api';
             document.getElementById('invoice-detail-modal').classList.add('show');
             loadDatalistOptions();
         }
+        window.showInvoiceDetail = showInvoiceDetail;
+        window.openInvoiceDetail = showInvoiceDetail;
 
         async function loadDatalistOptions() {
             try {
@@ -781,8 +887,7 @@ const API_BASE = '/api';
             progressEl.classList.remove('hidden');
             var logsContainer = document.getElementById('logs-container');
             logsContainer.innerHTML = '';
-            addLogEntry('系统就绪，准备处理发票...', 'info');
-            addLogEntry('开始批量处理...', 'info');
+            _lastLogCount = 0;
 
             var startData = await apiRequest('/tasks/process', 'POST');
             if (!startData) {
@@ -801,9 +906,20 @@ const API_BASE = '/api';
                     var stats = statusData.stats || {success: 0, duplicate: 0, failed: 0};
                     var error = statusData.error;
                     if (error) {
-                        showSuccessModal('处理失败', '请检查系统日志或文件状态', null);
+                        showSuccessModal('处理失败', error, null);
                     } else {
-                        showSuccessModal('处理完成', '所有待识别发票已处理完毕', stats);
+                        var failedFiles = (stats && stats.failed_files) || [];
+                        var msg = '所有待识别发票已处理完毕';
+                        if (failedFiles.length > 0) {
+                            window._pendingFailedProcessing = true;
+                            var total = (stats.success || 0) + (stats.duplicate || 0) + (stats.failed || 0);
+                            if ((stats.failed || 0) >= total) {
+                                msg = '所有文件均处理失败，请查看下方详情';
+                            } else {
+                                msg = '部分文件处理失败，请查看下方详情';
+                            }
+                        }
+                        showSuccessModal('处理完成', msg, stats, failedFiles);
                         loadDashboard();
                     }
                     heroBtn.disabled = false;
@@ -853,12 +969,15 @@ const API_BASE = '/api';
                 updateLogBadge();
                 return;
             }
-            container.innerHTML = '';
+            // Append-only: only render new entries since last poll (avoid flicker)
+            var newLogs = data.length > _lastLogCount ? data.slice(_lastLogCount) : data;
+            _lastLogCount = data.length;
+            if (newLogs.length === 0) { updateLogBadge(); return; }
             var activeFilter = document.querySelector('.log-filter-btn.active');
             var filterLevel = activeFilter ? activeFilter.dataset.level : 'all';
             var icons = { 'info': 'fa-info-circle', 'success': 'fa-check-circle', 'warning': 'fa-exclamation-triangle', 'error': 'fa-times-circle' };
             var colors = { 'info': '#818cf8', 'success': '#34d399', 'warning': '#fbbf24', 'error': '#f87171' };
-            data.forEach(function(log) {
+            newLogs.forEach(function(log) {
                 var l = log.level || 'info';
                 if (filterLevel !== 'all' && l !== filterLevel) return;
                 var div = document.createElement('div');
@@ -885,6 +1004,7 @@ const API_BASE = '/api';
 
         async function clearLogs() {
             await apiRequest('/logs/clear', 'POST');
+            _lastLogCount = 0;
             var container = document.getElementById('logs-container');
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(148,163,184,0.4);font-size:13px;"><div class="text-center"><i class="fa fa-terminal" style="font-size:32px;display:block;margin-bottom:10px;opacity:0.25;"></i>暂无日志记录</div></div>';
             updateLogBadge();
@@ -1039,9 +1159,16 @@ const API_BASE = '/api';
         }
 
         var statsPeriod = 'all';
+        var statsCustomDates = false;  // true when user sets custom dates
 
         function switchStatsPeriod(period, btn) {
             statsPeriod = period;
+            statsCustomDates = false;
+            // Clear custom date inputs
+            var fromEl = document.getElementById('stats-date-from');
+            var toEl = document.getElementById('stats-date-to');
+            if (fromEl) fromEl.value = '';
+            if (toEl) toEl.value = '';
             document.querySelectorAll('.stats-period-btn').forEach(function(b) { b.classList.remove('active'); });
             if (btn) btn.classList.add('active');
             var labels = {'month':'本月数据','quarter':'本季度数据','year':'本年度数据','all':'全部数据'};
@@ -1050,7 +1177,29 @@ const API_BASE = '/api';
             loadStatsSummary();
         }
 
+        function onStatsDateChange() {
+            var fromEl = document.getElementById('stats-date-from');
+            var toEl = document.getElementById('stats-date-to');
+            if (fromEl && fromEl.value) {
+                statsCustomDates = true;
+                document.querySelectorAll('.stats-period-btn').forEach(function(b) { b.classList.remove('active'); });
+                var labelEl = document.getElementById('stats-period-label');
+                if (labelEl) labelEl.textContent = '自定义日期';
+                loadStatsSummary();
+            } else if (!fromEl || !fromEl.value) {
+                statsCustomDates = false;
+                // Re-trigger the active period
+                var active = document.querySelector('.stats-period-btn.active');
+                if (active) switchStatsPeriod(active.dataset.period, active);
+            }
+        }
+
         function getStatsDateRange() {
+            if (statsCustomDates) {
+                var fromEl = document.getElementById('stats-date-from');
+                var toEl = document.getElementById('stats-date-to');
+                return {from: fromEl ? fromEl.value : '', to: toEl ? toEl.value : ''};
+            }
             var now = new Date();
             var y = now.getFullYear();
             var m = now.getMonth();
@@ -1065,7 +1214,19 @@ const API_BASE = '/api';
             return {from: '', to: ''};
         }
 
+        function showStatsLoading() {
+            ['stat-total-amt','stat-total-price','stat-total-tax','stat-seller-cnt','stat-total-cnt'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.innerHTML = '<span class="skeleton" style="display:inline-block;width:60px;height:18px;"></span>';
+            });
+            var sr = document.getElementById('seller-ranking');
+            if (sr) sr.innerHTML = '<p class="text-text-muted text-sm text-center py-4">加载中...</p>';
+            var mc = document.getElementById('monthly-amount-chart');
+            if (mc) mc.innerHTML = '<p class="text-text-muted text-sm text-center py-4">加载中...</p>';
+        }
+
         async function loadStatsSummary() {
+            showStatsLoading();
             var range = getStatsDateRange();
             var params = [];
             if (range.from) params.push('date_from=' + range.from);
@@ -1077,8 +1238,11 @@ const API_BASE = '/api';
             document.getElementById('stat-total-price').textContent = formatMoney(result.total_price);
             document.getElementById('stat-total-tax').textContent = formatMoney(result.total_tax);
             document.getElementById('stat-seller-cnt').textContent = result.seller_cnt || 0;
+            var cntEl = document.getElementById('stat-total-cnt');
+            if (cntEl) cntEl.textContent = '共 ' + (result.total_cnt || 0) + ' 张';
             renderSellerRanking(result.top_sellers || []);
             renderMonthlyAmountChart(result.monthly_summary || []);
+            renderInvoiceTypeChart(result.type_summary || [], result.total_cnt || 0);
             loadInputTaxSummary(qs);
             loadExpenseDistribution(qs);
         }
@@ -1090,6 +1254,12 @@ const API_BASE = '/api';
             var period = result.period || '';
             var periodEl = document.getElementById('input-tax-period');
             if (periodEl) periodEl.textContent = period;
+            // Dynamic heading
+            var titleEl = document.getElementById('input-tax-title');
+            if (titleEl) {
+                var labels = {'month':'进项税额汇总（本月专票）','quarter':'进项税额汇总（本季度专票）','year':'进项税额汇总（本年度专票）','all':'进项税额汇总'};
+                titleEl.textContent = labels[statsPeriod] || '进项税额汇总';
+            }
             var certSummary = result.certified_summary || {cnt: 0, total_tax: 0};
             var unvSummary = result.unverified_summary || {cnt: 0, total_tax: 0};
             var certEl = document.getElementById('input-tax-certified');
@@ -1121,17 +1291,65 @@ const API_BASE = '/api';
             tableEl.innerHTML = html;
         }
 
+        function renderInvoiceTypeChart(types, totalCnt) {
+            var section = document.getElementById('invoice-type-section');
+            var container = document.getElementById('invoice-type-chart');
+            if (!section || !container) return;
+            if (!types || types.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            var hasRealType = types.some(function(t) { return t.invoice_type && t.invoice_type.trim() !== ''; });
+            if (!hasRealType) {
+                section.style.display = '';
+                container.innerHTML = '<p class="text-text-muted text-sm text-center py-4">发票类型字段暂未识别，无法统计占比</p>';
+                return;
+            }
+            section.style.display = '';
+            container.innerHTML = '';
+            if (typeof echarts === 'undefined') { container.innerHTML = '<p class="text-text-muted text-sm text-center py-4">图表库未加载</p>'; return; }
+            var colorMap = {'增值税专用发票':'#6366f1','增值税普通发票':'#10b981','全电发票（专用发票）':'#f59e0b','全电发票（普通发票）':'#8b5cf6','增值税电子专用发票':'#6366f1','增值税电子普通发票':'#10b981'};
+            var chart = echarts.init(container);
+            chart.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        return params.name + '<br/>数量: ' + params.value + ' 张 (' + params.percent + '%)<br/>金额: ¥' + formatMoney(params.data.amt || 0);
+                    }
+                },
+                color: ['#6366f1','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#94a3b8'],
+                legend: { orient: 'vertical', left: 'left', textStyle: { fontSize: 11, color: '#64748b' } },
+                series: [{
+                    type: 'pie',
+                    radius: ['45%','70%'],
+                    center: ['55%','50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+                    label: { show: false },
+                    emphasis: { label: { show: true, fontSize: 12, fontWeight: 'bold' } },
+                    data: types.map(function(t) {
+                        var label = t.invoice_type && t.invoice_type.trim() ? t.invoice_type : '未分类';
+                        return { name: label, value: t.cnt, amt: t.amt };
+                    })
+                }]
+            });
+            chart.on('click', function(params) {
+                var el = container.querySelector('.text-xs.text-text-muted');
+                if (el) el.textContent = params.name + ': ' + params.value + ' 张';
+            });
+        }
+
         function renderSellerRanking(sellers) {
             var container = document.getElementById('seller-ranking');
             if (sellers.length === 0) {
                 container.innerHTML = '<p class="text-text-muted text-sm text-center py-4">暂无数据</p>';
                 return;
             }
-            var maxAmt = Math.max(...sellers.map(function(s) { return s.amt; }), 1);
+            var maxAmt = Math.max.apply(null, sellers.map(function(s) { return s.amt; }), 1);
             var html = '';
             sellers.forEach(function(s, i) {
                 var pct = Math.max(5, (s.amt / maxAmt) * 100);
-                html += '<div class="flex items-center gap-3 mb-3 last:mb-0">';
+                html += '<div class="flex items-center gap-3 mb-3 last:mb-0 cursor-pointer" onclick="searchSeller(\'' + escapeHtml((s.seller || '').replace(/'/g,"\\'")) + '\')" title="查看该销售方发票">';
                 html += '<span class="text-xs font-bold w-5 text-right" style="color:' + (i < 3 ? '#6366f1' : '#94a3b8') + ';">' + (i + 1) + '</span>';
                 html += '<div class="flex-1 min-w-0">';
                 html += '<div class="flex justify-between items-center mb-1">';
@@ -1144,6 +1362,15 @@ const API_BASE = '/api';
             container.innerHTML = html;
         }
 
+        function searchSeller(seller) {
+            switchPage('invoices');
+            setTimeout(function() {
+                var sel = document.getElementById('search-seller');
+                if (sel) { sel.value = seller; }
+                loadInvoices(1);
+            }, 200);
+        }
+
         function renderMonthlyAmountChart(monthly) {
             var container = document.getElementById('monthly-amount-chart');
             if (monthly.length === 0) {
@@ -1151,19 +1378,63 @@ const API_BASE = '/api';
                 return;
             }
             monthly.reverse();
-            var maxAmt = Math.max(...monthly.map(function(m) { return m.amt; }), 1);
-            var html = '<div style="display:flex;align-items:flex-end;gap:6px;height:120px;">';
+            var maxVal = Math.max.apply(null, monthly.map(function(m) { return m.amt; }), 1);
+            var html = '<div style="display:flex;align-items:flex-end;gap:6px;height:130px;">';
             monthly.forEach(function(m) {
-                var pct = Math.max(3, (m.amt / maxAmt) * 100);
+                var pctAmt = Math.max(3, (m.amt / maxVal) * 100);
                 var label = m.month ? m.month.substring(5) : '';
                 html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">';
-                html += '<div style="font-size:10px;color:#6366f1;font-weight:600;">¥' + (m.amt >= 10000 ? (m.amt / 10000).toFixed(1) + '万' : m.amt.toFixed(0)) + '</div>';
-                html += '<div style="width:100%;max-width:28px;height:' + pct + '%;background:linear-gradient(180deg,#a78bfa,#8b5cf6);border-radius:4px 4px 2px 2px;min-height:3px;transition:height 0.6s ease;"></div>';
+                html += '<div style="font-size:9px;color:#64748b;font-weight:500;">¥' + (m.amt >= 10000 ? (m.amt / 10000).toFixed(1) + '万' : m.amt.toFixed(0)) + '</div>';
+                // Stacked bar: price (bottom) + tax (top) with column-reverse
+                html += '<div style="width:100%;max-width:28px;height:' + pctAmt + '%;display:flex;flex-direction:column-reverse;min-height:3px;">';
+                html += '<div style="width:100%;flex:' + (m.price / (m.amt || 1)) + ';background:linear-gradient(180deg,#a78bfa,#6366f1);border-radius:0 0 2px 2px;min-height:2px;" title="不含税: ' + formatMoney(m.price) + '"></div>';
+                html += '<div style="width:100%;flex:' + (m.tax / (m.amt || 1)) + ';background:linear-gradient(180deg,#f59e0b,#d97706);border-radius:2px 2px 0 0;min-height:2px;" title="税额: ' + formatMoney(m.tax) + '"></div>';
+                html += '</div>';
                 html += '<div style="font-size:10px;color:#94a3b8;">' + label + '</div>';
                 html += '</div>';
             });
             html += '</div>';
+            // Legend
+            html += '<div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">';
+            html += '<span style="font-size:10px;color:#64748b;"><span style="display:inline-block;width:10px;height:10px;background:#a78bfa;border-radius:2px;margin-right:4px;"></span>不含税金额</span>';
+            html += '<span style="font-size:10px;color:#64748b;"><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;"></span>税额</span>';
+            html += '</div>';
             container.innerHTML = html;
+        }
+
+        async function exportStatsReport() {
+            var range = getStatsDateRange();
+            var params = [];
+            if (range.from) params.push('date_from=' + range.from);
+            if (range.to) params.push('date_to=' + range.to);
+            var qs = params.length ? '?' + params.join('&') : '';
+            var result = await apiRequest('/stats/summary' + qs);
+            if (!result) return;
+            var rows = [];
+            rows.push('指标,值');
+            rows.push('发票总额,' + (result.total_amt || 0));
+            rows.push('不含税金额,' + (result.total_price || 0));
+            rows.push('税额合计,' + (result.total_tax || 0));
+            rows.push('发票数量,' + (result.total_cnt || 0));
+            rows.push('销售方数量,' + (result.seller_cnt || 0));
+            rows.push('');
+            rows.push('销售方排名,金额,数量');
+            (result.top_sellers || []).forEach(function(s) {
+                rows.push(escapeHtml(s.seller || '未知') + ',' + (s.amt || 0) + ',' + (s.cnt || 0));
+            });
+            rows.push('');
+            rows.push('月度趋势,月份,价税合计,不含税金额,税额');
+            (result.monthly_summary || []).forEach(function(m) {
+                rows.push((m.month || '') + ',' + (m.amt || 0) + ',' + (m.price || 0) + ',' + (m.tax || 0));
+            });
+            var csv = rows.join('\n');
+            var blob = new Blob(['﻿' + csv], {type: 'text/csv;charset=utf-8;'});
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = '统计报表_' + new Date().toISOString().slice(0, 10) + '.csv';
+            link.click();
+            URL.revokeObjectURL(link.href);
+            showToast('统计报表已导出', 'success');
         }
 
         async function exportCSV() {
@@ -1220,16 +1491,24 @@ const API_BASE = '/api';
             var riskListEl = document.getElementById('risk-alert-list');
             if (result.risk_count > 0 && riskSection && riskCountEl && riskListEl) {
                 riskCountEl.textContent = result.risk_count + ' 条预警';
-                var html = '';
+                var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="border-bottom:1px solid var(--color-border-light);">';
+                html += '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600;">发票号码</th>';
+                html += '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600;">销售方</th>';
+                html += '<th style="text-align:right;padding:6px 8px;color:#64748b;font-weight:600;">金额</th>';
+                html += '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600;">风险类型</th>';
+                html += '<th style="text-align:center;padding:6px 8px;color:#64748b;font-weight:600;">操作</th>';
+                html += '</tr></thead><tbody>';
                 (result.risk_invoices || []).forEach(function(inv) {
-                    var riskDesc = getRiskDesc(inv.risk_flags || (inv.risk_labels && inv.risk_labels.length > 0 ? 'high_amount' : ''));
-                    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--color-border-light);">';
-                    html += '<i class="fa fa-exclamation-triangle" style="color:#ef4444;font-size:14px;flex-shrink:0;"></i>';
-                    html += '<div style="flex:1;min-width:0;">';
-                    html += '<div class="flex items-center gap-2"><span class="font-mono text-xs text-text-muted">' + escapeHtml(inv.invoice_num) + '</span><span class="text-sm text-text-primary">' + escapeHtml(inv.seller) + '</span></div>';
-                    html += '<div class="text-xs text-text-muted">' + (inv.risk_labels || []).join('；') + ' · ¥' + formatMoney(inv.total_amount) + (riskDesc ? ' · ' + escapeHtml(riskDesc) : '') + '</div>';
-                    html += '</div></div>';
+                    var riskLabels = (inv.risk_labels || []).join('；') || '异常';
+                    html += '<tr style="border-bottom:1px solid var(--color-border-light);cursor:pointer;" onclick="showInvoiceDetail(\'' + escapeHtml((inv.invoice_num || '').replace(/'/g,"\\'")) + '\')">';
+                    html += '<td style="padding:8px;font-family:\'JetBrains Mono\',monospace;color:#1e293b;font-weight:500;">' + escapeHtml(inv.invoice_num) + '</td>';
+                    html += '<td style="padding:8px;color:#334155;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(inv.seller) + '</td>';
+                    html += '<td style="padding:8px;text-align:right;color:#6366f1;font-weight:600;font-family:\'JetBrains Mono\',monospace;">' + formatMoney(inv.total_amount) + '</td>';
+                    html += '<td style="padding:8px;"><span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;background:#fef2f2;color:#dc2626;font-size:11px;font-weight:600;"><i class="fa fa-exclamation-triangle" style="font-size:9px;"></i>' + escapeHtml(riskLabels) + '</span></td>';
+                    html += '<td style="padding:8px;text-align:center;"><span style="color:#6366f1;font-size:11px;">查看详情</span></td>';
+                    html += '</tr>';
                 });
+                html += '</tbody></table>';
                 riskListEl.innerHTML = html;
                 riskSection.style.display = '';
             } else if (riskSection) {
@@ -1287,6 +1566,8 @@ const API_BASE = '/api';
                 document.getElementById('search-seller').value = '';
                 document.getElementById('search-invoice-type').value = '';
                 document.getElementById('search-push-status').value = '';
+                _quickFilter = 'all';
+                document.querySelectorAll('.inv-filter-pill').forEach(function(el) { el.classList.toggle('active', el.dataset.filter === 'all'); });
                 loadInvoices(1);
             });
             document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
@@ -1309,22 +1590,6 @@ const API_BASE = '/api';
             document.getElementById('invoices-body').addEventListener('click', function(e) {
                 var btn = e.target.closest('.btn-detail');
                 if (btn) { showInvoiceDetail(btn.dataset.invoice); return; }
-                var qvBtn = e.target.closest('.btn-quick-verify');
-                if (qvBtn) { handleVerifyFromList(qvBtn.dataset.invoice); }
-            });
-            document.getElementById('invoices-body').addEventListener('mouseover', function(e) {
-                var row = e.target.closest('tr');
-                if (row) {
-                    var qv = row.querySelector('.btn-quick-verify');
-                    if (qv) qv.style.display = '';
-                }
-            });
-            document.getElementById('invoices-body').addEventListener('mouseout', function(e) {
-                var row = e.target.closest('tr');
-                if (row) {
-                    var qv = row.querySelector('.btn-quick-verify');
-                    if (qv) qv.style.display = 'none';
-                }
             });
             initUploadZone();
             loadVerifyConfig();

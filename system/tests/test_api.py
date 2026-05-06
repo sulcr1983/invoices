@@ -6,14 +6,30 @@ import tempfile
 import shutil
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from system.api_server import app
 from system.routes.shared import db_manager, add_log, clear_logs, process_logs
 from system.db_manager import DBManager
-from system.extractor import extract_invoice, calculate_file_md5
+from system.extractor import extract_invoice
+from system.core.data_utils import calculate_file_md5
 from system.services.file_service import ensure_directories, scan_pending_files
 from system.config import INPUT_DIR as INPUT_INVOICES_DIR, ARCHIVE_DIR, DB_PATH
+
+_TEST_FILES = ['test_invoice_upload.pdf', 'flow_test_invoice.pdf']
+
+
+@pytest.fixture(autouse=True)
+def cleanup_uploaded_test_files():
+    yield
+    from pathlib import Path
+    input_dir = Path(str(INPUT_INVOICES_DIR))
+    for fname in _TEST_FILES:
+        fpath = input_dir / fname
+        if fpath.exists():
+            fpath.unlink()
 
 _records, _total = db_manager.query_records(limit=1)
 EXISTING_INVOICE_NUM = _records[0]['invoice_num'] if _records else '26204437'
@@ -761,3 +777,107 @@ class TestLogMemory:
         assert process_logs[-3]['message'] == 'first'
         assert process_logs[-2]['message'] == 'second'
         assert process_logs[-1]['message'] == 'third'
+
+
+# ================================================================
+# 19. POST /api/upload (文件上传)
+# ================================================================
+
+class TestUpload:
+    """测试文件上传接口"""
+
+    def test_upload_no_files(self, client):
+        """异常处理：不上传文件应返回400"""
+        resp = client.post('/api/upload', content_type='multipart/form-data')
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert data['status'] == 'error'
+
+    def test_upload_single_file(self, client):
+        """正常流程：上传单个文件"""
+        from io import BytesIO
+        data = {'files': (BytesIO(b'test invoice content'), 'test_invoice_upload.pdf')}
+        resp = client.post('/api/upload', content_type='multipart/form-data', data=data)
+        assert resp.status_code == 200
+        result = resp.get_json()
+        assert result['status'] == 'success'
+        assert len(result['data']['uploaded']) == 1
+        assert 'test_invoice_upload.pdf' in result['data']['uploaded']
+
+
+# ================================================================
+# 20. 完整用户流程模拟
+# ================================================================
+
+class TestUserFlow:
+    """模拟用户完整使用流程"""
+
+    def test_full_flow_upload_then_pending(self, client):
+        """完整流程：上传文件 → 查看待处理文件列表"""
+        from io import BytesIO
+        # 先上传
+        data = {'files': (BytesIO(b'flow test content'), 'flow_test_invoice.pdf')}
+        resp = client.post('/api/upload', content_type='multipart/form-data', data=data)
+        assert resp.status_code == 200
+
+        # 再检查待处理列表
+        resp2 = client.get('/api/tasks/pending')
+        assert resp2.status_code == 200
+        data2 = resp2.get_json()
+        assert data2['status'] == 'success'
+        assert 'flow_test_invoice.pdf' in data2['data']['files']
+
+    def test_full_flow_status_after_operations(self, client):
+        """完整流程：查看系统状态 → 查看dashboard → 查看发票列表"""
+        # 系统状态
+        resp = client.get('/api/system/status')
+        assert resp.status_code == 200
+        status_data = resp.get_json()
+        assert status_data['data']['database'] is True
+        assert status_data['data']['directories'] is True
+
+        # Dashboard
+        resp2 = client.get('/api/dashboard')
+        assert resp2.status_code == 200
+        dash_data = resp2.get_json()
+        assert dash_data['status'] == 'success'
+
+        # 发票列表
+        resp3 = client.get('/api/invoices?limit=3')
+        assert resp3.status_code == 200
+        inv_data = resp3.get_json()
+        assert inv_data['status'] == 'success'
+
+    def test_full_flow_export_verify(self, client):
+        """完整流程：导出所有发票 → 验证数据完整性"""
+        resp = client.get('/api/export/invoices')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['status'] == 'success'
+        # 导出的发票应有完整字段
+        if data['data']['invoices']:
+            inv = data['data']['invoices'][0]
+            required_fields = ['invoice_num', 'seller', 'seller_tax_id', 'date',
+                               'buyer', 'total_amount', 'invoice_type']
+            for field in required_fields:
+                assert field in inv, f"缺少必要字段: {field}"
+
+    def test_full_flow_log_cycle(self, client, clean_logs):
+        """完整流程：添加日志 → 获取日志 → 清空日志 → 验证清空"""
+        # 添加日志
+        client.post('/api/logs/add', json={'message': '用户流程测试', 'level': 'info'})
+        client.post('/api/logs/add', json={'message': '处理完成', 'level': 'success'})
+
+        # 获取日志
+        resp = client.get('/api/logs')
+        assert resp.status_code == 200
+        logs = resp.get_json()['data']
+        assert len(logs) >= 2
+
+        # 清空日志
+        resp2 = client.post('/api/logs/clear')
+        assert resp2.status_code == 200
+
+        # 验证清空
+        resp3 = client.get('/api/logs')
+        assert resp3.get_json()['data'][0]['message'] == '日志已清空'

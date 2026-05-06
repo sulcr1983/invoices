@@ -119,8 +119,13 @@
                 </div>
             </div>
 
-            <!-- 统计卡片 3x2 -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+            <!-- 处理概览 -->
+            <div class="flex items-center gap-2 mb-3">
+                <div class="w-1 h-4 rounded-full" style="background:var(--color-primary);"></div>
+                <h3 class="text-text-primary font-semibold text-sm">处理概览</h3>
+                <span class="text-xs text-text-muted ml-1">当月数据总览</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
                 <div class="glass-card p-4 float-up">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-warning-bg);color:var(--color-warning);"><i class="fa fa-clock-o"></i></div>
@@ -130,7 +135,7 @@
                 <div class="glass-card p-4 float-up">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-success-bg);color:var(--color-success);"><i class="fa fa-archive"></i></div>
-                        <div><p class="stat-label">已归档</p><p class="stat-number" style="color:var(--color-success);font-size:24px;" id="stat-archived">-</p></div>
+                        <div><p class="stat-label">已归档</p><p class="stat-number" style="color:var(--color-success);font-size:24px;" id="stat-archived">-</p><p class="text-xs text-text-muted mt-0.5" id="stat-archived-amt"></p></div>
                     </div>
                 </div>
                 <div class="glass-card p-4 float-up">
@@ -139,6 +144,15 @@
                         <div><p class="stat-label">本月新增</p><p class="stat-number" style="color:var(--color-primary);font-size:24px;" id="stat-month-cnt">-</p></div>
                     </div>
                 </div>
+            </div>
+
+            <!-- 状态预警 -->
+            <div class="flex items-center gap-2 mb-3">
+                <div class="w-1 h-4 rounded-full" style="background:#ef4444;"></div>
+                <h3 class="text-text-primary font-semibold text-sm">状态预警</h3>
+                <span class="text-xs text-text-muted ml-1">需关注的处理事项</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
                 <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #ef4444;" onclick="switchPage('invoices');setTimeout(function(){document.getElementById('search-keyword').value='';document.getElementById('search-invoice-type').value='';loadInvoices(1);},200);">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-danger-bg);color:var(--color-danger);"><i class="fa fa-shield"></i></div>
@@ -151,7 +165,7 @@
                         <div><p class="stat-label">待认证专票</p><p class="stat-number" style="color:#f59e0b;font-size:24px;" id="stat-certify-pending">0</p></div>
                     </div>
                 </div>
-                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #dc2626;" onclick="switchPage('stats');">
+                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #dc2626;" onclick="switchPage('stats');setTimeout(function(){var el=document.getElementById('risk-alert-section');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},500);">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:#fef2f2;color:#dc2626;"><i class="fa fa-exclamation-triangle"></i></div>
                         <div><p class="stat-label">异常发票</p><p class="stat-number" style="color:#dc2626;font-size:24px;" id="stat-risk-alert">0</p></div>
@@ -159,27 +173,6 @@
                 </div>
             </div>
 
-            <!-- 待办工作台 -->
-            <div class="glass-card p-4 mb-5" id="todo-workbench">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-text-primary font-semibold text-sm"><i class="fa fa-tasks" style="color:var(--color-primary);margin-right:6px;"></i>待办事项</h3>
-                    <span class="text-xs text-text-muted" id="todo-summary">加载中...</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="todo-items">
-                    <div class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:shadow-sm" style="background:#fef2f2;border:1px solid #fecaca;" onclick="switchPage('invoices');setTimeout(function(){document.getElementById('search-keyword').value='';document.getElementById('search-invoice-type').value='';loadInvoices(1);},200);">
-                        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#fee2e2;"><i class="fa fa-shield" style="color:#dc2626;font-size:14px;"></i></div>
-                        <div><p class="text-sm font-semibold" style="color:#dc2626;" id="todo-verify">0 张待验真</p><p class="text-xs" style="color:#f87171;">点击跳转处理</p></div>
-                    </div>
-                    <div class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:shadow-sm" style="background:#fffbeb;border:1px solid #fde68a;" onclick="switchPage('invoices');setTimeout(function(){document.getElementById('search-invoice-type').value='增值税专用发票';loadInvoices(1);},200);">
-                        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#fef3c7;"><i class="fa fa-check-circle-o" style="color:#d97706;font-size:14px;"></i></div>
-                        <div><p class="text-sm font-semibold" style="color:#d97706;" id="todo-certify">0 张待认证</p><p class="text-xs" style="color:#fbbf24;">专票需及时认证</p></div>
-                    </div>
-                    <div class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:shadow-sm" style="background:#f8fafc;border:1px solid #e2e8f0;" onclick="switchPage('stats');">
-                        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#f1f5f9;"><i class="fa fa-exclamation-triangle" style="color:#64748b;font-size:14px;"></i></div>
-                        <div><p class="text-sm font-semibold" style="color:#475569;" id="todo-risk">0 条风险预警</p><p class="text-xs" style="color:#94a3b8;">查看风险详情</p></div>
-                    </div>
-                </div>
-            </div>
 
             <!-- 处理概览 -->
             <div class="grid md:grid-cols-5 gap-4 mb-5">
@@ -333,17 +326,27 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button id="btn-batch-verify" class="btn-ghost" style="font-size:12px;display:none;" onclick="batchVerifyFromList()"><i class="fa fa-search"></i> 批量验真</button>
                         <button id="btn-batch-certify" class="btn-ghost" style="font-size:12px;display:none;" onclick="batchCertify()"><i class="fa fa-check-circle-o"></i> 批量标记已认证</button>
                         <button id="btn-batch-attribution" class="btn-ghost" style="font-size:12px;display:none;" onclick="showBatchAttributionModal()"><i class="fa fa-tag"></i> 批量设置归属</button>
                         <button id="btn-export-csv" class="btn-ghost" style="font-size:12px;"><i class="fa fa-download"></i> 导出CSV</button>
                     </div>
                 </div>
                 <div id="invoice-tab-all">
+                    <div class="px-4 py-2 flex items-center gap-2" style="border-bottom:1px solid var(--color-border-light);">
+                        <span style="font-size:11px;color:#64748b;font-weight:500;margin-right:4px;">快捷筛选</span>
+                        <span class="inv-filter-pill active" data-filter="all" onclick="applyQuickFilter('all')">全部</span>
+                        <span class="inv-filter-pill" data-filter="month" onclick="applyQuickFilter('month')">本月</span>
+                        <span class="inv-filter-pill" data-filter="quarter" onclick="applyQuickFilter('quarter')">近三月</span>
+                        <span class="inv-filter-pill" data-filter="unverified" onclick="applyQuickFilter('unverified')">未验真</span>
+                        <span class="inv-filter-pill" data-filter="risk" onclick="applyQuickFilter('risk')">高风险</span>
+                        <span id="selected-info" style="display:none;margin-left:auto;font-size:11px;color:#6366f1;font-weight:500;"></span>
+                    </div>
                     <span id="pagination-info" style="display:none;"></span>
                     <div class="overflow-x-auto">
                         <table class="data-table" style="margin:0;">
                             <thead><tr>
-                                <th><input type="checkbox" id="select-all-invoices" onclick="toggleSelectAll(this)" style="margin-right:4px;accent-color:var(--color-primary);"></th><th>发票号码</th><th>销售方</th><th>开票日期</th><th class="text-right">价税合计</th><th>验真状态</th><th>费用归属</th><th class="text-center">操作</th>
+                                <th><input type="checkbox" id="select-all-invoices" onclick="toggleSelectAll(this)" style="margin-right:4px;accent-color:var(--color-primary);"></th><th>发票号码</th><th>销售方</th><th class="sortable" onclick="toggleSort('date')" title="点击排序">开票日期 <span id="sort-indicator-date" style="font-size:9px;color:#94a3b8;"></span></th><th class="text-right sortable" onclick="toggleSort('amount')" title="点击排序">价税合计 <span id="sort-indicator-amount" style="font-size:9px;color:#94a3b8;"></span></th><th>验真状态</th><th>费用归属</th><th class="text-center">操作</th>
                             </tr></thead>
                             <tbody id="invoices-body"></tbody>
                         </table>
@@ -379,14 +382,38 @@
                     <button class="stats-period-btn" data-period="quarter" onclick="switchStatsPeriod('quarter',this)">本季度</button>
                     <button class="stats-period-btn" data-period="year" onclick="switchStatsPeriod('year',this)">本年度</button>
                     <button class="stats-period-btn active" data-period="all" onclick="switchStatsPeriod('all',this)">全部</button>
+                    <span style="width:1px;height:16px;background:var(--color-border-light);margin:0 4px;"></span>
+                    <input type="date" id="stats-date-from" class="form-input" style="width:auto;font-size:12px;padding:4px 8px;" onchange="onStatsDateChange()">
+                    <span class="text-text-muted text-xs">至</span>
+                    <input type="date" id="stats-date-to" class="form-input" style="width:auto;font-size:12px;padding:4px 8px;" onchange="onStatsDateChange()">
                 </div>
-                <span class="text-xs text-text-muted" id="stats-period-label">全部数据</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-text-muted" id="stats-period-label">全部数据</span>
+                    <button class="btn-ghost" style="font-size:12px;padding:4px 10px;" onclick="exportStatsReport()" title="导出统计报表"><i class="fa fa-download"></i> 导出报表</button>
+                </div>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">发票总额</p><p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt">¥0</p></div>
-                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">不含税金额</p><p class="text-lg font-bold" style="color:var(--color-success)" id="stat-total-price">¥0</p></div>
-                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">税额合计</p><p class="text-lg font-bold" style="color:var(--color-warning)" id="stat-total-tax">¥0</p></div>
-                <div class="glass-card p-3"><p class="text-text-muted text-xs mb-0.5">销售方数量</p><p class="text-lg font-bold" style="color:var(--color-accent)" id="stat-seller-cnt">0</p></div>
+                <div class="glass-card p-3 cursor-pointer" onclick="switchPage('invoices')" title="点击查看发票列表">
+                    <p class="text-text-muted text-xs mb-0.5">发票总额</p>
+                    <p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt">¥0</p>
+                    <p class="text-xs text-text-muted mt-0.5" id="stat-total-cnt">共 0 张</p>
+                </div>
+                <div class="glass-card p-3">
+                    <p class="text-text-muted text-xs mb-0.5">不含税金额</p>
+                    <p class="text-lg font-bold" style="color:var(--color-success)" id="stat-total-price">¥0</p>
+                </div>
+                <div class="glass-card p-3 cursor-pointer" onclick="switchPage('invoices')" title="点击查看发票列表">
+                    <p class="text-text-muted text-xs mb-0.5">税额合计</p>
+                    <p class="text-lg font-bold" style="color:var(--color-warning)" id="stat-total-tax">¥0</p>
+                </div>
+                <div class="glass-card p-3 cursor-pointer" onclick="switchPage('invoices')" title="点击查看发票列表">
+                    <p class="text-text-muted text-xs mb-0.5">销售方数量</p>
+                    <p class="text-lg font-bold" style="color:var(--color-accent)" id="stat-seller-cnt">0</p>
+                </div>
+            </div>
+            <div class="glass-card p-4 mb-3" id="invoice-type-section" style="display:none;">
+                <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-pie-chart" style="color:var(--color-primary);margin-right:5px;"></i>发票类型占比</h4>
+                <div id="invoice-type-chart"></div>
             </div>
             <div class="grid md:grid-cols-2 gap-3 mb-3">
                 <div class="glass-card p-4">
@@ -400,7 +427,7 @@
             </div>
             <div class="glass-card p-4 mb-3">
                 <div class="flex items-center justify-between mb-3">
-                    <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-calculator" style="color:var(--color-primary);margin-right:5px;"></i>进项税额汇总（本月专票）</h4>
+                    <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-calculator" style="color:var(--color-primary);margin-right:5px;"></i><span id="input-tax-title">进项税额汇总</span></h4>
                     <span class="text-xs text-text-muted" id="input-tax-period"></span>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-3">
@@ -432,8 +459,8 @@
                     <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-exclamation-triangle" style="color:#ef4444;margin-right:5px;"></i>异常发票提醒</h4>
                     <span class="text-xs font-bold" style="color:#ef4444;" id="risk-alert-count"></span>
                 </div>
-                <p class="text-xs text-text-muted mb-3">以下发票存在金额或开票行为异常，建议重点关注审批流程</p>
-                <div id="risk-alert-list"></div>
+                <p class="text-xs text-text-muted mb-3">以下发票存在金额或开票行为异常，建议重点关注审批流程。点击行可查看详情。</p>
+                <div class="detail-verify-result-content" style="max-height:none;" id="risk-alert-list"></div>
             </div>
         </div>
 
@@ -458,14 +485,22 @@
             <div class="detail-body">
                 <div class="detail-hero">
                     <div class="detail-hero-left">
-                        <p class="detail-label">发票号码</p>
-                        <p id="detail-invoice-num" class="detail-mono-lg"></p>
-                        <div class="detail-meta-row">
-                            <span class="detail-meta-item">日期 <span id="detail-date" class="detail-text-sm"></span></span>
-                            <span class="detail-meta-divider"></span>
-                            <span id="detail-invoice-type" class="badge badge-primary" style="font-size:10px;"></span>
-                            <span class="detail-meta-divider"></span>
-                            <span class="detail-meta-item" style="position:relative;" title="发票代码"><span id="detail-invoice-code" class="detail-mono-sm" style="opacity:0.5;font-size:10px;"></span></span>
+                        <div class="detail-hero-top-row">
+                            <div>
+                                <p class="detail-label">发票号码</p>
+                                <p id="detail-invoice-num" class="detail-mono-lg"></p>
+                            </div>
+                            <span id="detail-type-badge" class="badge badge-primary" style="font-size:10px;margin-top:4px;"></span>
+                        </div>
+                        <div class="detail-hero-meta-grid">
+                            <div class="detail-hero-meta-item">
+                                <span class="detail-hero-meta-label">发票代码</span>
+                                <span id="detail-invoice-code" class="detail-hero-meta-value"></span>
+                            </div>
+                            <div class="detail-hero-meta-item">
+                                <span class="detail-hero-meta-label">开票日期</span>
+                                <span id="detail-date" class="detail-hero-meta-value"></span>
+                            </div>
                         </div>
                     </div>
                     <div class="detail-amount-card">
@@ -483,14 +518,21 @@
 
                 <div class="detail-status-bar">
                     <div class="detail-status-item">
-                        <button id="btn-view-original" class="detail-btn-ghost" style="display:none;"><i class="fa fa-external-link"></i> 原件</button>
                         <span id="detail-verify-badge"></span>
-                        <button id="btn-verify-invoice" class="detail-verify-btn" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i> 验真</button>
-                        <p id="detail-verify-message" class="detail-status-hint" style="display:none;"></p>
+                    </div>
+                    <div class="detail-status-divider"></div>
+                    <div class="detail-status-item">
+                        <span id="detail-cert-badge"></span>
                     </div>
                     <div id="detail-risk-badge-area" class="detail-status-item" style="display:none;">
                         <div class="detail-status-divider"></div>
                         <span id="detail-risk-badge"></span>
+                    </div>
+                    <div style="flex:1;min-width:8px;"></div>
+                    <div class="detail-status-item">
+                        <button id="btn-view-original" class="detail-btn-ghost" style="display:none;"><i class="fa fa-external-link"></i> 原件</button>
+                        <button id="btn-verify-invoice" class="detail-verify-btn" onclick="handleVerifyFromDetail()"><i class="fa fa-search"></i> 验真</button>
+                        <p id="detail-verify-message" class="detail-status-hint" style="display:none;"></p>
                     </div>
                 </div>
 
@@ -565,12 +607,13 @@
 
     <!-- 成功通知弹窗 -->
     <div class="modal-overlay" id="success-modal">
-        <div class="modal-box" style="max-width:400px;">
+        <div class="modal-box" style="max-width:480px;">
             <div class="p-6 text-center">
                 <div class="success-check"><i class="fa fa-check"></i></div>
                 <h3 class="text-text-primary text-lg font-bold mb-1.5" id="success-title">处理完成</h3>
                 <div class="text-text-secondary text-sm mb-4" id="success-message"></div>
                 <div class="grid grid-cols-3 gap-2 mb-4" id="success-stats"></div>
+                <div id="success-failures"></div>
                 <button onclick="closeSuccessModal()" class="btn-primary btn-primary-sm w-full">我知道了</button>
             </div>
         </div>
@@ -605,6 +648,52 @@
                     <button onclick="closeVerifyConfirm()" class="btn-ghost" style="min-width:120px;justify-content:center;">取消</button>
                     <button onclick="confirmVerify()" class="btn-primary btn-primary-sm" style="min-width:120px;justify-content:center;"><i class="fa fa-check"></i> 确认验真</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量验真确认弹窗 -->
+    <div class="modal-overlay" id="batch-verify-confirm-modal">
+        <div class="modal-box" style="max-width:440px;">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:#fef3c7;"><i class="fa fa-exclamation-triangle" style="color:#f59e0b;font-size:18px;"></i></div>
+                    <div>
+                        <h3 class="text-text-primary font-bold text-base">确认批量验真</h3>
+                        <p class="text-text-muted text-xs">将逐张调用百度验真接口</p>
+                    </div>
+                </div>
+                <div style="background:var(--color-bg-subtle);border-radius:8px;padding:12px;margin-bottom:16px;">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-text-secondary text-sm">待验真发票</span>
+                        <span class="text-text-primary font-mono text-sm font-semibold" id="batch-verify-count"></span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-text-secondary text-sm">预计费用</span>
+                        <span class="font-bold text-sm" style="color:#ef4444;" id="batch-verify-cost"></span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px;justify-content:center;">
+                    <button onclick="closeBatchVerifyConfirm()" class="btn-ghost" style="min-width:120px;justify-content:center;">取消</button>
+                    <button onclick="confirmBatchVerify()" class="btn-primary btn-primary-sm" style="min-width:120px;justify-content:center;"><i class="fa fa-check"></i> 确认验真</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量验真结果弹窗 -->
+    <div class="modal-overlay" id="batch-verify-result-modal">
+        <div class="modal-box" style="max-width:520px;">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:#ecfdf5;"><i class="fa fa-check-circle" style="color:#10b981;font-size:18px;"></i></div>
+                    <div>
+                        <h3 class="text-text-primary font-bold text-base">批量验真结果</h3>
+                        <p class="text-text-muted text-xs" id="batch-verify-result-summary"></p>
+                    </div>
+                </div>
+                <div id="batch-verify-result-list" style="max-height:300px;overflow-y:auto;margin-bottom:16px;"></div>
+                <button onclick="closeBatchVerifyResult()" class="btn-primary btn-primary-sm w-full" style="justify-content:center;">我知道了</button>
             </div>
         </div>
     </div>

@@ -113,10 +113,15 @@ def process_invoice_file(processing_path, db_manager, batch_id=None):
 
     except Exception as e:
         logger.error(f"处理文件异常: {original_filename}, 错误: {e}")
+        invoice_num_for_error = None
         try:
-            if 'invoice_num' in locals() and record.get('invoice_num'):
+            invoice_num_for_error = record.get('invoice_num', 'unknown')
+        except Exception:
+            pass
+        try:
+            if invoice_num_for_error:
                 db_manager.update_error_type(
-                    record.get('invoice_num', 'unknown'),
+                    invoice_num_for_error,
                     f'exception: {type(e).__name__}',
                     str(e)
                 )

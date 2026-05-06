@@ -124,6 +124,7 @@ def err_to_cn(error_keyword):
         "token": "百度OCR认证失败，请检查 .env 中的 API Key 配置",
         "api_key": "百度OCR配置不完整，请在 .env 中配置 BAIDU_API_KEY 和 BAIDU_SECRET_KEY",
         "OCR": "发票识别服务暂时不可用，请稍后重试",
+        "extract": "发票识别失败，请检查文件是否清晰、完整",
         "md5": "文件读取失败，请检查文件是否损坏",
         "pdf": "PDF文件解析失败，请确认文件格式正确",
         "database": "数据库操作异常，请联系技术支持",

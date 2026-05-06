@@ -81,14 +81,14 @@ def view_original_invoice():
         if not record:
             return {'status': 'error', 'message': '未找到对应文件'}, 404
 
-        from ..core.data_utils import calculate_file_md5
-
+        invoice_num = record[1] if len(record) > 1 else None
         archive_dir = Path(str(ARCHIVE_DIR))
         archive_path = None
-        for fpath in archive_dir.rglob('*'):
-            if fpath.is_file() and calculate_file_md5(str(fpath)) == file_md5:
-                archive_path = str(fpath)
-                break
+        if invoice_num:
+            for fpath in archive_dir.rglob(f'*{invoice_num}*'):
+                if fpath.is_file():
+                    archive_path = str(fpath)
+                    break
 
         if not archive_path or not Path(archive_path).exists():
             return {'status': 'error', 'message': '归档文件不存在'}, 404
@@ -106,14 +106,18 @@ def view_original_invoice():
 @system_bp.route('/api/invoice/file/<file_md5>', methods=['GET'])
 def serve_original_invoice(file_md5):
     try:
-        from ..core.data_utils import calculate_file_md5
+        record = db_manager.get_record_by_md5(file_md5)
+        if not record:
+            return {'status': 'error', 'message': '未找到对应文件'}, 404
 
+        invoice_num = record[1] if len(record) > 1 else None
         archive_dir = Path(str(ARCHIVE_DIR))
         archive_path = None
-        for fpath in archive_dir.rglob('*'):
-            if fpath.is_file() and calculate_file_md5(str(fpath)) == file_md5:
-                archive_path = str(fpath)
-                break
+        if invoice_num:
+            for fpath in archive_dir.rglob(f'*{invoice_num}*'):
+                if fpath.is_file():
+                    archive_path = str(fpath)
+                    break
 
         if not archive_path or not Path(archive_path).exists():
             return {'status': 'error', 'message': '归档文件不存在'}, 404

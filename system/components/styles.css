@@ -223,10 +223,8 @@ body {
     background: var(--color-bg-subtle);
 }
 .data-table tbody tr {
-    transition: background var(--transition-fast);
     border-bottom: 1px solid var(--color-border-light);
 }
-.data-table tbody tr:hover { background: var(--color-primary-bg); }
 .data-table tbody tr:last-child { border-bottom: none; }
 .data-table tbody td {
     padding: 8px 10px;
@@ -542,6 +540,42 @@ select.input-field {
 .stats-period-btn:hover { color: var(--color-primary); border-color: var(--color-primary-light); }
 .stats-period-btn.active { color: #fff; background: var(--color-primary); border-color: var(--color-primary); }
 
+/* 发票快捷筛选标签 */
+.inv-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: #64748b;
+    background: transparent;
+    border: 1px solid transparent;
+}
+.inv-filter-pill:hover {
+    color: var(--color-primary);
+    background: var(--color-primary-bg);
+}
+.inv-filter-pill.active {
+    color: #fff;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+/* 表头排序 */
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+th.sortable:hover {
+    color: var(--color-primary) !important;
+}
+/* 风险行高亮 */
+tr.risk-row td:first-child {
+    border-left: 3px solid #ef4444;
+}
+
 /* --- 响应式 --- */
 @media (max-width: 768px) {
     .stat-number { font-size: 22px; }
@@ -657,6 +691,34 @@ select.input-field {
 .detail-hero-left {
     flex: 1;
     min-width: 0;
+}
+.detail-hero-top-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.detail-hero-meta-grid {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.detail-hero-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.detail-hero-meta-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.detail-hero-meta-value {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
 }
 .detail-label {
     font-size: 10px;

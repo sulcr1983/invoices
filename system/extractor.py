@@ -52,7 +52,7 @@ def extract_invoice(file_path):
         else:
             logger.warning(f"OFD文件解析无结果: {file_path}")
 
-    if not record and ext != '.ofd':
+    if not record:
         if is_baidu_ocr_available():
             words_result = extract_from_baidu_vat_invoice(file_path)
             if words_result:

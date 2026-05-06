@@ -4,8 +4,13 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
+
+# Build
 dist/
 build/
+*.zip
+*.rar
+*.7z
 
 # Virtual environments
 venv/
@@ -24,18 +29,16 @@ env/
 Thumbs.db
 desktop.ini
 
-# Environment
+# Environment (template tracked, actual secrets ignored)
 .env
 .env.local
 
-# Database (production data is in system/data/)
+# Database
 system/data/*.db
 system/data/*.backup
 
-# Temporary processing files
+# Temporary processing (contents only, keep dirs)
 X-处理中临时/*
-
-# User data directories
 待识别发票/*
 已归档发票/*
 识别失败待处理/*
@@ -43,17 +46,16 @@ X-处理中临时/*
 
 # Logs
 *.log
+system/logs/
 
-# Web hooks secrets
-*.json
+# Personal / archive
+archive/
 
-# Personal notes
-system/README.md
-
-# Build artifacts
-*.zip
-*.rar
-*.7z
-
-# CSV exports
+# CSV export
 发票台账.csv
+
+# Test artifacts
+.pytest_cache/
+.testmondata
+htmlcov/
+.coverage
