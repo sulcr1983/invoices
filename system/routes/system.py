@@ -146,11 +146,74 @@ def open_directory():
         return api_error(str(e))
 
 
+@system_bp.route('/api/webhook/config', methods=['GET'])
+def get_webhook_config():
+    try:
+        from ..config import WECOM_WEBHOOK_URL, WECOM_SCHEMA
+        
+        has_webhook = bool(WECOM_WEBHOOK_URL)
+        has_schema = bool(WECOM_SCHEMA)
+        
+        return {
+            'status': 'success',
+            'data': {
+                'webhook_configured': has_webhook,
+                'schema_configured': has_schema,
+                'platform': 'wecom',
+                'has_schema': has_schema
+            }
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
+@system_bp.route('/api/webhook/test', methods=['POST'])
+def test_webhook():
+    try:
+        from ..config import WECOM_WEBHOOK_URL, WECOM_SCHEMA
+        from ..webhook_manager import test_webhook_connection
+        
+        if not WECOM_WEBHOOK_URL:
+            return {'status': 'error', 'message': 'Webhook URL 未配置'}, 400
+        
+        result = test_webhook_connection("wecom", WECOM_WEBHOOK_URL, WECOM_SCHEMA)
+        
+        return {
+            'status': 'success' if result['ok'] else 'error',
+            'data': result
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
 @system_bp.route('/')
 def index():
-    return send_from_directory('components', 'index.html')
+    from flask import make_response
+    try:
+        with open('components/index.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+        response = make_response(content)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        return response
+    except Exception as e:
+        return send_from_directory('components', 'index.html')
 
 
 @system_bp.route('/<path:path>')
 def static_files(path):
-    return send_from_directory('components', path)
+    from flask import make_response
+    try:
+        if path.endswith('.html') or path.endswith('.js') or path.endswith('.css'):
+            with open(f'components/{path}', 'r', encoding='utf-8') as f:
+                content = f.read()
+            response = make_response(content)
+            if path.endswith('.html'):
+                response.headers['Content-Type'] = 'text/html; charset=utf-8'
+            elif path.endswith('.js'):
+                response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+            elif path.endswith('.css'):
+                response.headers['Content-Type'] = 'text/css; charset=utf-8'
+            return response
+        return send_from_directory('components', path)
+    except Exception as e:
+        return send_from_directory('components', path)
