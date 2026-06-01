@@ -77,7 +77,7 @@ def _kill_port_occupants(port):
 
 if __name__ == '__main__':
     _kill_port_occupants(5000)
-    print("天颐发票处理系统 API服务器启动中...")
+    print("SuperSu 发票自动识别验真推送系统")
     print("访问地址: http://localhost:5000")
     print("按 Ctrl+C 停止服务器")
     app.run(host='0.0.0.0', port=5000, debug=False)

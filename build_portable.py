@@ -212,7 +212,7 @@ threading.Thread(target=open_browser, daemon=True).start()
 
 from system.api_server import app
 print("="*50)
-print("  天颐发票处理系统 已启动")
+print("  SuperSu 发票自动识别验真推送系统 已启动")
 print("  浏览器将自动打开 http://localhost:5000")
 print("  关闭此窗口即可退出系统")
 print("="*50)
@@ -239,7 +239,7 @@ if errorlevel 1 (
     print(f'  已创建: 天颐发票系统.bat')
 
     readme_file = os.path.join(PORTABLE_DIR, '使用说明.txt')
-    readme_content = '''天颐发票处理系统 - 绿色便携版
+    readme_content = '''SuperSu 发票自动识别验真推送系统 - 绿色便携版
 ====================================
 
 使用方法：
@@ -359,7 +359,7 @@ def step8_report():
 
 
 if __name__ == '__main__':
-    print('天颐发票处理系统 - 绿色便携版打包工具')
+    print('SuperSu 发票自动识别验真推送系统 - 绿色便携版打包工具')
     print('='*60)
     step1_download_python_embed()
     step2_configure_python()
