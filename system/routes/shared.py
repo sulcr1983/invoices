@@ -1,4 +1,6 @@
 import logging
+import threading
+from collections import deque
 from datetime import datetime
 
 from ..db_manager import DBManager
@@ -7,24 +9,27 @@ from ..config import DB_PATH, LOG_PATH, ARCHIVE_DIR, PROJECT_ROOT, err_to_cn
 logger = logging.getLogger(__name__)
 
 db_manager = DBManager(DB_PATH)
-process_logs = []
+_logs_lock = threading.Lock()
+process_logs = deque(maxlen=100)
 
 
 def add_log(message, level='info'):
     timestamp = datetime.now().strftime('%H:%M:%S')
     log_entry = {'timestamp': timestamp, 'message': message, 'level': level}
-    process_logs.append(log_entry)
-    if len(process_logs) > 100:
-        process_logs.pop(0)
+    with _logs_lock:
+        process_logs.append(log_entry)
     return log_entry
 
 
 def get_recent_logs(count=50):
-    return process_logs[-count:] if len(process_logs) >= count else process_logs
+    with _logs_lock:
+        logs = list(process_logs)
+    return logs[-count:] if len(logs) >= count else logs
 
 
 def clear_logs():
-    process_logs.clear()
+    with _logs_lock:
+        process_logs.clear()
     add_log('日志已清空', 'info')
     return True
 

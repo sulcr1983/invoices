@@ -57,7 +57,9 @@ class ModelsMixin:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_total_amount ON records(total_amount)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_process_time ON records(process_time)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_type ON records(invoice_type)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_verify_status ON records(verify_status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_deduction_status ON records(deduction_status)")
             conn.commit()
             conn.close()
             logger.info("数据库初始化完成（新表结构）")
@@ -97,7 +99,21 @@ class ModelsMixin:
                     pass
 
         try:
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+        except Exception:
+            # 如果已有重复数据，UNIQUE会失败，降级为普通索引
+            logger.warning("invoice_num存在重复数据，使用普通索引代替UNIQUE")
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+            except Exception:
+                pass
+
+        try:
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_verify_status ON records(verify_status)")
+        except Exception:
+            pass
+        try:
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_deduction_status ON records(deduction_status)")
         except Exception:
             pass
 
@@ -140,6 +156,8 @@ class ModelsMixin:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_process_time ON records(process_time)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_type ON records(invoice_type)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_verify_status ON records(verify_status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_deduction_status ON records(deduction_status)")
         logger.info("数据库迁移完成：id 主键已添加")
 
     def _init_webhooks_table(self):

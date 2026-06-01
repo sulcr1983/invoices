@@ -2,6 +2,7 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
+echo.
 echo ========================================
 echo   天颐发票处理系统
 echo ========================================
@@ -15,10 +16,10 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
-echo    Python 环境正常
+for /f "tokens=2" %%i in ('python --version 2^>^&1') do echo   Python %%i OK
 
 echo [2/4] 检查依赖...
-pip list 2>nul | findstr "Flask" >nul
+pip list 2>nul | findstr /i "Flask" >nul
 if %errorlevel% neq 0 (
     echo    正在自动安装依赖(首次运行)...
     pip install -r system/requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
@@ -28,11 +29,9 @@ if %errorlevel% neq 0 (
 )
 
 echo [3/4] 检查工作目录...
-if not exist "待识别发票" md "待识别发票"
-if not exist "已归档发票" md "已归档发票"
-if not exist "识别失败待处理" md "识别失败待处理"
-if not exist "重复发票记录" md "重复发票记录"
-if not exist "X-处理中临时" md "X-处理中临时"
+for %%d in ("待识别发票" "已归档发票" "识别失败待处理" "重复发票记录" "X-处理中临时") do (
+    if not exist "%%~d" md "%%~d" >nul 2>&1
+)
 echo    目录检查完毕
 
 echo [4/4] 检查端口并启动系统...
@@ -41,6 +40,7 @@ if %errorlevel% equ 0 (
     echo    检测到端口5000被占用，正在释放...
     for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5000.*LISTENING"') do (
         taskkill /F /PID %%a >nul 2>&1
+        echo    已终止PID: %%a
     )
     timeout /t 1 /nobreak >nul
     echo    端口已释放

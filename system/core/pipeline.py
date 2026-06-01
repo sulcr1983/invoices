@@ -91,7 +91,11 @@ def check_environment():
                 logger.info(f"{display_name}: 已安装")
             else:
                 module = __import__(import_name)
-                version = getattr(module, '__version__', '未知')
+                try:
+                    from importlib.metadata import version as _pkg_version
+                    version = _pkg_version(import_name)
+                except Exception:
+                    version = getattr(module, '__version__', '未知')
                 logger.info(f"{display_name}: {version}")
         except ImportError as e:
             logger.error(f"{display_name}: 未安装 ({e})")
@@ -134,6 +138,11 @@ def run_pipeline():
         print("[环境检查] 一切正常，准备处理发票...")
 
     db_manager = DBManager(DB_PATH)
+
+    # 清理上次异常退出遗留的过期文件锁
+    stale_count = db_manager.cleanup_all_stale_locks(max_age_minutes=30)
+    if stale_count > 0:
+        logger.info(f"已清理 {stale_count} 个过期文件锁")
 
     batch_id = generate_batch_id()
     logger.info(f"本次批次ID: {batch_id}")

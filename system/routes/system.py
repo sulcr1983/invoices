@@ -6,6 +6,9 @@ from .shared import db_manager, api_error, LOG_PATH, ARCHIVE_DIR, PROJECT_ROOT
 
 system_bp = Blueprint('system', __name__)
 
+# 前端组件目录（基于system包的父目录下的components）
+_COMPONENTS_DIR = str(Path(__file__).resolve().parent.parent / 'components')
+
 
 @system_bp.route('/api/system/logs', methods=['GET'])
 def get_system_logs():
@@ -135,7 +138,12 @@ def open_directory():
         if not dir_name:
             return {'status': 'error', 'message': '缺少目录名称'}, 400
 
-        target_dir = Path(str(PROJECT_ROOT)) / dir_name
+        target_dir = (Path(str(PROJECT_ROOT)) / dir_name).resolve()
+        project_root_resolved = Path(str(PROJECT_ROOT)).resolve()
+
+        # 防止路径遍历：确保目标目录在项目根目录内
+        if not str(target_dir).startswith(str(project_root_resolved)):
+            return {'status': 'error', 'message': '非法路径'}, 403
 
         if not target_dir.exists():
             return {'status': 'error', 'message': f'目录不存在: {dir_name}'}, 404
@@ -150,10 +158,10 @@ def open_directory():
 def get_webhook_config():
     try:
         from ..config import WECOM_WEBHOOK_URL, WECOM_SCHEMA
-        
+
         has_webhook = bool(WECOM_WEBHOOK_URL)
         has_schema = bool(WECOM_SCHEMA)
-        
+
         return {
             'status': 'success',
             'data': {
@@ -172,12 +180,12 @@ def test_webhook():
     try:
         from ..config import WECOM_WEBHOOK_URL, WECOM_SCHEMA
         from ..webhook_manager import test_webhook_connection
-        
+
         if not WECOM_WEBHOOK_URL:
             return {'status': 'error', 'message': 'Webhook URL 未配置'}, 400
-        
+
         result = test_webhook_connection("wecom", WECOM_WEBHOOK_URL, WECOM_SCHEMA)
-        
+
         return {
             'status': 'success' if result['ok'] else 'error',
             'data': result
@@ -190,30 +198,42 @@ def test_webhook():
 def index():
     from flask import make_response
     try:
-        with open('components/index.html', 'r', encoding='utf-8') as f:
+        with open(f'{_COMPONENTS_DIR}/index.html', 'r', encoding='utf-8') as f:
             content = f.read()
         response = make_response(content)
         response.headers['Content-Type'] = 'text/html; charset=utf-8'
         return response
-    except Exception as e:
-        return send_from_directory('components', 'index.html')
+    except Exception:
+        return send_from_directory(_COMPONENTS_DIR, 'index.html')
 
 
 @system_bp.route('/<path:path>')
 def static_files(path):
-    from flask import make_response
+    from flask import make_response, jsonify
+    if path.startswith('api/'):
+        return jsonify({'status': 'error', 'message': '请求的资源不存在'}), 404
+    safe_extensions = {'.html', '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico'}
+    file_ext = Path(path).suffix.lower()
+    if file_ext not in safe_extensions:
+        return {'status': 'error', 'message': '不支持的文件类型'}, 404
+
+    full_path = (Path(_COMPONENTS_DIR) / path).resolve()
+    components_resolved = Path(_COMPONENTS_DIR).resolve()
+    if not str(full_path).startswith(str(components_resolved)):
+        return {'status': 'error', 'message': '非法路径'}, 403
+
     try:
-        if path.endswith('.html') or path.endswith('.js') or path.endswith('.css'):
-            with open(f'components/{path}', 'r', encoding='utf-8') as f:
+        if file_ext in {'.html', '.js', '.css'}:
+            with open(str(full_path), 'r', encoding='utf-8') as f:
                 content = f.read()
             response = make_response(content)
-            if path.endswith('.html'):
+            if file_ext == '.html':
                 response.headers['Content-Type'] = 'text/html; charset=utf-8'
-            elif path.endswith('.js'):
+            elif file_ext == '.js':
                 response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
-            elif path.endswith('.css'):
+            elif file_ext == '.css':
                 response.headers['Content-Type'] = 'text/css; charset=utf-8'
             return response
-        return send_from_directory('components', path)
-    except Exception as e:
-        return send_from_directory('components', path)
+        return send_from_directory(_COMPONENTS_DIR, path)
+    except Exception:
+        return send_from_directory(_COMPONENTS_DIR, path)

@@ -33,25 +33,27 @@ def get_dashboard():
 
         monthly_trend = []
         now = datetime.now()
-        for i in range(5, -1, -1):
-            m = now.month - i
-            y = now.year
-            while m <= 0:
-                m += 12
-                y -= 1
-            month_str = f"{y:04d}-{m:02d}"
-            conn = db_manager._get_connection()
+        conn = db_manager._get_connection()
+        try:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0), COALESCE(SUM(price_without_tax),0), COALESCE(SUM(tax_amount),0) FROM records WHERE strftime('%Y-%m', process_time) = ?", (month_str,))
-            row = cursor.fetchone()
+            for i in range(5, -1, -1):
+                m = now.month - i
+                y = now.year
+                while m <= 0:
+                    m += 12
+                    y -= 1
+                month_str = f"{y:04d}-{m:02d}"
+                cursor.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0), COALESCE(SUM(price_without_tax),0), COALESCE(SUM(tax_amount),0) FROM records WHERE strftime('%Y-%m', process_time) = ?", (month_str,))
+                row = cursor.fetchone()
+                monthly_trend.append({
+                    'month': month_str,
+                    'count': row[0],
+                    'amount': round(row[1], 2),
+                    'price': round(row[2], 2),
+                    'tax': round(row[3], 2)
+                })
+        finally:
             conn.close()
-            monthly_trend.append({
-                'month': month_str,
-                'count': row[0],
-                'amount': round(row[1], 2),
-                'price': round(row[2], 2),
-                'tax': round(row[3], 2)
-            })
 
         return {
             'status': 'success',
@@ -59,6 +61,7 @@ def get_dashboard():
                 'stats': {
                     'total_cnt': stats['total_cnt'],
                     'total_amt': stats['total_amt'],
+                    'archived_cnt': archived_count,
                     'month_cnt': stats['month_cnt'],
                     'month_amt': stats['month_amt']
                 },

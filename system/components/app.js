@@ -2,6 +2,14 @@ const API_BASE = '/api';
         let currentPage = 'dashboard';
         let invoiceListPage = 1;
         const PAGE_LIMIT = 10;
+        var _pendingRequests = {};
+
+        function abortPending(key) {
+            if (_pendingRequests[key]) {
+                try { _pendingRequests[key].abort(); } catch(e) {}
+                delete _pendingRequests[key];
+            }
+        }
 
         // ====== Toast 通知 ======
         function showToast(message, type) {
@@ -30,17 +38,25 @@ const API_BASE = '/api';
 
         function safeText(val, def) { return (val !== null && val !== undefined && val !== '') ? val : (def || ''); }
 
-        async function apiRequest(endpoint, method, data) {
+        async function apiRequest(endpoint, method, data, abortKey) {
             try {
                 const options = { method: method || 'GET', headers: { 'Content-Type': 'application/json' } };
+                if (abortKey) {
+                    abortPending(abortKey);
+                    var ctrl = new AbortController();
+                    _pendingRequests[abortKey] = ctrl;
+                    options.signal = ctrl.signal;
+                }
                 if (data) options.body = JSON.stringify(data);
                 const response = await fetch(API_BASE + endpoint, options);
                 const result = await response.json();
+                if (abortKey) delete _pendingRequests[abortKey];
                 if (result.status === 'success') {
                     return result.data !== undefined ? result.data : result;
                 }
                 return null;
             } catch (error) {
+                if (error.name === 'AbortError') return null;
                 console.error('API错误:', error);
                 return null;
             }
@@ -208,7 +224,7 @@ const API_BASE = '/api';
                 html += '<div class="result-card flex items-center gap-3 border-b border-border-light last:border-b-0">';
                 html += '<div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="font-mono font-medium" style="font-size:11px;color:var(--color-primary);">' + escapeHtml(inv.invoice_num || '') + '</span>' + statusTag + '</div>';
                 html += '<p class="text-text-muted text-xs truncate mt-0.5">' + escapeHtml(inv.seller || '') + ' · ' + escapeHtml(inv.item || '') + '</p></div>';
-                html += '<div class="text-right flex-shrink-0"><p class="font-semibold font-mono" style="font-size:12px;color:#1e293b;">¥' + formatMoney(inv.total_amount) + '</p>';
+                html += '<div class="text-right flex-shrink-0"><p class="font-semibold font-mono" style="font-size:12px;color:#1e293b;">' + formatMoney(inv.total_amount) + '</p>';
                 html += '<p class="text-text-muted text-xs">' + escapeHtml(inv.date || '') + '</p></div></div>';
             });
             container.innerHTML = html;
@@ -222,7 +238,7 @@ const API_BASE = '/api';
             document.getElementById('stat-pending').textContent = data.directory_status.pending || 0;
             document.getElementById('stat-archived').textContent = data.directory_status.archived || 0;
             var amtEl = document.getElementById('stat-archived-amt');
-            if (amtEl) amtEl.textContent = '¥' + formatMoney(data.stats.total_amt || 0);
+            if (amtEl) amtEl.textContent = formatMoney(data.stats.total_amt || 0);
             document.getElementById('stat-month-cnt').textContent = data.stats.month_cnt || 0;
             document.getElementById('hero-pending-count').textContent = data.directory_status.pending || 0;
             loadDashboardAlerts();
@@ -232,25 +248,14 @@ const API_BASE = '/api';
 
         async function loadDashboardAlerts() {
             try {
-                var invResult = await apiRequest('/invoices?limit=1000');
-                var verifyPending = 0, certifyPending = 0;
-                if (invResult && invResult.invoices) {
-                    invResult.invoices.forEach(function(inv) {
-                        if (inv.verify_status === 'unverified') verifyPending++;
-                        if (inv.certification_status === 'unverified' && inv.invoice_type && inv.invoice_type.indexOf('专') >= 0) certifyPending++;
-                    });
-                }
-                var vpEl = document.getElementById('stat-verify-pending');
-                if (vpEl) vpEl.textContent = verifyPending;
-                var cpEl = document.getElementById('stat-certify-pending');
-                if (cpEl) cpEl.textContent = certifyPending;
-            } catch(e) {}
-
-            try {
-                var distResult = await apiRequest('/stats/expense-distribution');
-                if (distResult) {
+                var countResult = await apiRequest('/stats/invoice-counts', 'GET', null, 'invoice-counts');
+                if (countResult) {
+                    var vpEl = document.getElementById('stat-verify-pending');
+                    if (vpEl) vpEl.textContent = countResult.verify_pending || 0;
+                    var cpEl = document.getElementById('stat-certify-pending');
+                    if (cpEl) cpEl.textContent = countResult.certify_pending || 0;
                     var raEl = document.getElementById('stat-risk-alert');
-                    if (raEl) raEl.textContent = distResult.risk_count || 0;
+                    if (raEl) raEl.textContent = countResult.risk_count || 0;
                 }
             } catch(e) {}
         }
@@ -434,7 +439,7 @@ const API_BASE = '/api';
         };
 
         var riskFlagDescMap = {
-            'high_amount': '单张发票金额超过10万元，需关注审批流程',
+            'high_amount': '单张发票金额超过1万元，需关注审批流程',
             'split_suspicion': '同一销售方短期内多张开票，可能存在拆分避审'
         };
 
@@ -1149,7 +1154,7 @@ const API_BASE = '/api';
                 html += '<td style="padding:12px 16px;"><span class="font-mono text-xs">' + escapeHtml(rec.invoice_num || '') + '</span></td>';
                 html += '<td style="padding:12px 16px;">' + escapeHtml(rec.seller || '-') + '</td>';
                 html += '<td style="padding:12px 16px;">' + escapeHtml(rec.date || '-') + '</td>';
-                html += '<td style="padding:12px 16px;text-align:right;font-weight:600;color:#6366f1;">¥' + (rec.total_amount || 0) + '</td>';
+                html += '<td style="padding:12px 16px;text-align:right;font-weight:600;color:#6366f1;">' + formatMoney(rec.total_amount || 0) + '</td>';
                 html += '<td style="padding:12px 16px;"><span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:' + typeColor + '15;color:' + typeColor + ';">' + typeLabel + '</span></td>';
                 html += '<td style="padding:12px 16px;font-size:12px;color:#64748b;" title="' + escapeHtml(rec.file_md5 || '') + '">' + escapeHtml(rec.filename || '-') + '</td>';
                 html += '<td style="padding:12px 16px;font-size:12px;color:#94a3b8;">' + escapeHtml(rec.detected_at || '-') + '</td>';
@@ -1232,7 +1237,7 @@ const API_BASE = '/api';
             if (range.from) params.push('date_from=' + range.from);
             if (range.to) params.push('date_to=' + range.to);
             var qs = params.length ? '?' + params.join('&') : '';
-            var result = await apiRequest('/stats/summary' + qs);
+            var result = await apiRequest('/stats/summary' + qs, 'GET', null, 'stats-summary');
             if (!result) return;
             document.getElementById('stat-total-amt').textContent = formatMoney(result.total_amt);
             document.getElementById('stat-total-price').textContent = formatMoney(result.total_price);
@@ -1249,7 +1254,7 @@ const API_BASE = '/api';
 
         async function loadInputTaxSummary(qs) {
             qs = qs || '';
-            var result = await apiRequest('/stats/input-tax-summary' + qs);
+            var result = await apiRequest('/stats/input-tax-summary' + qs, 'GET', null, 'input-tax');
             if (!result) return;
             var period = result.period || '';
             var periodEl = document.getElementById('input-tax-period');
@@ -1308,7 +1313,9 @@ const API_BASE = '/api';
             section.style.display = '';
             container.innerHTML = '';
             if (typeof echarts === 'undefined') { container.innerHTML = '<p class="text-text-muted text-sm text-center py-4">图表库未加载</p>'; return; }
-            var colorMap = {'增值税专用发票':'#6366f1','增值税普通发票':'#10b981','全电发票（专用发票）':'#f59e0b','全电发票（普通发票）':'#8b5cf6','增值税电子专用发票':'#6366f1','增值税电子普通发票':'#10b981'};
+            // 先销毁已有实例，防止内存泄漏
+            var existingInstance = echarts.getInstanceByDom(container);
+            if (existingInstance) existingInstance.dispose();
             var chart = echarts.init(container);
             chart.setOption({
                 tooltip: {
@@ -1482,7 +1489,7 @@ const API_BASE = '/api';
 
         async function loadExpenseDistribution(qs) {
             qs = qs || '';
-            var result = await apiRequest('/stats/expense-distribution' + qs);
+            var result = await apiRequest('/stats/expense-distribution' + qs, 'GET', null, 'expense-dist');
             if (!result) return;
             renderDeptChart(result.dept_distribution || []);
             renderExpenseTypeChart(result.expense_distribution || []);
@@ -1520,6 +1527,8 @@ const API_BASE = '/api';
             var container = document.getElementById('dept-distribution-chart');
             if (!container || typeof echarts === 'undefined') return;
             if (!data.length) { container.innerHTML = '<p class="text-text-muted text-xs text-center py-8">暂无数据</p>'; return; }
+            var existingInstance = echarts.getInstanceByDom(container);
+            if (existingInstance) existingInstance.dispose();
             var chart = echarts.init(container);
             chart.setOption({
                 tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
@@ -1535,6 +1544,8 @@ const API_BASE = '/api';
             var container = document.getElementById('expense-type-chart');
             if (!container || typeof echarts === 'undefined') return;
             if (!data.length) { container.innerHTML = '<p class="text-text-muted text-xs text-center py-8">暂无数据</p>'; return; }
+            var existingInstance = echarts.getInstanceByDom(container);
+            if (existingInstance) existingInstance.dispose();
             var chart = echarts.init(container);
             chart.setOption({
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },

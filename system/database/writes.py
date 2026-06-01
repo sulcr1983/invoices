@@ -160,7 +160,7 @@ class WritesMixin:
             diff = round(detail_total - face_total, 2)
             cursor.execute("UPDATE records SET verify_diff = ? WHERE id = ?", (diff, invoice_id))
             conn.commit()
-            if diff == 0:
+            if abs(diff) < 0.01:
                 logger.info(f"发票校验通过: invoice_id={invoice_id}")
                 return True, "校验通过"
             else:

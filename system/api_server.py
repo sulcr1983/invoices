@@ -44,7 +44,39 @@ def create_app():
 
 app = create_app()
 
+
+def _kill_port_occupants(port):
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['netstat', '-ano'],
+            capture_output=True, text=True, timeout=5
+        )
+        pids = set()
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 5 and f':{port}' in parts[1] and parts[3] == 'LISTENING':
+                try:
+                    pids.add(int(parts[4]))
+                except ValueError:
+                    pass
+        if pids:
+            print(f"检测到端口 {port} 被占用 (PID: {pids})，正在释放...")
+            for pid in pids:
+                try:
+                    subprocess.run(['taskkill', '/F', '/PID', str(pid)],
+                                   capture_output=True, timeout=5)
+                    print(f"  已终止进程 PID {pid}")
+                except Exception:
+                    pass
+            import time
+            time.sleep(1)
+    except Exception as e:
+        print(f"端口检测失败: {e}")
+
+
 if __name__ == '__main__':
+    _kill_port_occupants(5000)
     print("天颐发票处理系统 API服务器启动中...")
     print("访问地址: http://localhost:5000")
     print("按 Ctrl+C 停止服务器")

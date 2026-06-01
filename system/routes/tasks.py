@@ -1,3 +1,4 @@
+import logging
 import threading
 from pathlib import Path
 from flask import Blueprint, request
@@ -54,14 +55,16 @@ def upload_files():
 
 
 _pipeline_result = {'running': False, 'stats': None, 'error': None}
+_pipeline_lock = threading.Lock()
 
 
 def _run_pipeline_async():
     try:
         from ..core.pipeline import run_pipeline, logger as pipeline_logger
-        _pipeline_result['running'] = True
-        _pipeline_result['stats'] = None
-        _pipeline_result['error'] = None
+        with _pipeline_lock:
+            _pipeline_result['running'] = True
+            _pipeline_result['stats'] = None
+            _pipeline_result['error'] = None
 
         class LogCaptureHandler(logging.Handler):
             def emit(self, record):
@@ -70,7 +73,6 @@ def _run_pipeline_async():
                 msg = self.format(record)
                 add_log(msg, lvl)
 
-        import logging
         handler = LogCaptureHandler()
         handler.setFormatter(logging.Formatter('%(message)s'))
         pipeline_logger.addHandler(handler)
@@ -95,21 +97,25 @@ def _run_pipeline_async():
                 add_log(f'处理失败: {f["filename"]} — {reason_cn}', 'error')
 
         add_log('处理流程结束', 'info')
-        _pipeline_result['stats'] = stats
-        _pipeline_result['error'] = None
-        _pipeline_result['running'] = False
+        with _pipeline_lock:
+            _pipeline_result['stats'] = stats
+            _pipeline_result['error'] = None
+            _pipeline_result['running'] = False
     except Exception as e:
         cn_msg = err_to_cn(str(e))
         add_log(f'处理异常：{cn_msg}', 'error')
-        _pipeline_result['error'] = cn_msg
-        _pipeline_result['running'] = False
+        with _pipeline_lock:
+            _pipeline_result['error'] = cn_msg
+            _pipeline_result['running'] = False
 
 
 @tasks_bp.route('/api/tasks/process', methods=['POST'])
 def process_invoices():
     try:
-        if _pipeline_result['running']:
-            return {'status': 'error', 'message': '处理任务正在执行中，请等待完成'}, 409
+        with _pipeline_lock:
+            if _pipeline_result['running']:
+                return {'status': 'error', 'message': '处理任务正在执行中，请等待完成'}, 409
+            _pipeline_result['running'] = True
 
         thread = threading.Thread(target=_run_pipeline_async, daemon=True)
         thread.start()
@@ -122,12 +128,16 @@ def process_invoices():
 @tasks_bp.route('/api/tasks/status', methods=['GET'])
 def get_pipeline_status():
     try:
+        with _pipeline_lock:
+            running = _pipeline_result['running']
+            stats = _pipeline_result['stats']
+            error = _pipeline_result['error']
         return {
             'status': 'success',
             'data': {
-                'running': _pipeline_result['running'],
-                'stats': _pipeline_result['stats'],
-                'error': _pipeline_result['error']
+                'running': running,
+                'stats': stats,
+                'error': error
             }
         }
     except Exception as e:
