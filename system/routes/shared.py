@@ -1,4 +1,6 @@
 import logging
+import threading
+from collections import deque
 from datetime import datetime
 
 from ..db_manager import DBManager
@@ -7,7 +9,8 @@ from ..config import DB_PATH, LOG_PATH, ARCHIVE_DIR, PROJECT_ROOT, err_to_cn
 logger = logging.getLogger(__name__)
 
 db_manager = DBManager(DB_PATH)
-process_logs = []
+_logs_lock = threading.Lock()
+process_logs = deque(maxlen=100)
 _log_seq = 0
 
 
@@ -17,19 +20,22 @@ def add_log(message, level='info'):
     _log_seq += 1
     timestamp = datetime.now().strftime('%H:%M:%S')
     log_entry = {'seq': _log_seq, 'timestamp': timestamp, 'message': message, 'level': level}
-    process_logs.append(log_entry)
-    if len(process_logs) > 100:
-        process_logs.pop(0)
+    with _logs_lock:
+        process_logs.append(log_entry)
     return log_entry
 
 
 def get_recent_logs(count=50):
-    return process_logs[-count:] if len(process_logs) >= count else process_logs
+    with _logs_lock:
+        snapshot = list(process_logs)
+    return snapshot[-count:] if len(snapshot) >= count else snapshot
 
 
 def get_logs_since(since_seq=0):
     """返回 seq 大于 since_seq 的日志（增量）。"""
-    return [entry for entry in process_logs if entry.get('seq', 0) > since_seq]
+    with _logs_lock:
+        snapshot = list(process_logs)
+    return [entry for entry in snapshot if entry.get('seq', 0) > since_seq]
 
 
 def get_latest_seq():
@@ -37,7 +43,8 @@ def get_latest_seq():
 
 
 def clear_logs():
-    process_logs.clear()
+    with _logs_lock:
+        process_logs.clear()
     add_log('日志已清空', 'info')
     return True
 

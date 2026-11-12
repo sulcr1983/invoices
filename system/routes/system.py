@@ -185,6 +185,45 @@ def open_directory():
         return api_error(str(e))
 
 
+@system_bp.route('/api/webhook/config', methods=['GET'])
+def get_webhook_config():
+    """返回当前推送目标配置状态（只读，不暴露 URL 明文）。"""
+    try:
+        from ..config import WECOM_WEBHOOK_URL, WECOM_SCHEMA
+        has_webhook = bool(WECOM_WEBHOOK_URL)
+        has_schema = bool(WECOM_SCHEMA)
+        return {
+            'status': 'success',
+            'data': {
+                'webhook_configured': has_webhook,
+                'schema_configured': has_schema,
+                'platform': 'wecom',
+                'has_schema': has_schema
+            }
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
+@system_bp.route('/api/webhook/test', methods=['POST'])
+def test_webhook():
+    """测试企微 Webhook 是否可达（会真实发一条测试消息）。"""
+    try:
+        from ..config import WECOM_WEBHOOK_URL, WECOM_SCHEMA
+        from ..webhook_manager import test_webhook_connection
+
+        if not WECOM_WEBHOOK_URL:
+            return {'status': 'error', 'message': 'Webhook URL 未配置'}, 400
+
+        result = test_webhook_connection("wecom", WECOM_WEBHOOK_URL, WECOM_SCHEMA)
+        return {
+            'status': 'success' if result.get('ok') else 'error',
+            'data': result
+        }
+    except Exception as e:
+        return api_error(str(e))
+
+
 _COMPONENTS_DIR = str(Path(__file__).resolve().parent.parent / 'components')
 _ASSETS_DIR = str(Path(__file__).resolve().parent.parent / 'assets')
 

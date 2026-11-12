@@ -57,6 +57,8 @@ class ModelsMixin:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_total_amount ON records(total_amount)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_process_time ON records(process_time)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_type ON records(invoice_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_verify_status ON records(verify_status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_deduction_status ON records(deduction_status)")
             cursor.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_invoice_num "
                 "ON records(invoice_num) WHERE invoice_num IS NOT NULL AND invoice_num != ''"

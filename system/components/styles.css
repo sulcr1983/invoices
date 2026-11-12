@@ -48,13 +48,12 @@ body {
     --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --bg-primary: #FFFFFF;
     --bg-secondary: #F7F8FA;
-    --text-primary: #1D1D1F;
-    --text-secondary: #6E6E73;
-    --brand: #0071E3;
-    --brand-hover: #147DED;
-    --success: #34C759;
-    --error: #FF3B30;
-    --border: #D2D2D7;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --brand: #6366f1;
+    --brand-hover: #818cf8;
+    --error: #ef4444;
+    --border: #e2e8f0;
     --sp-xs: 4px;
     --sp-sm: 8px;
     --sp-md: 16px;
@@ -64,8 +63,8 @@ body {
     --fs-h2: 18px;
     --fs-body: 14px;
     --fs-caption: 12px;
-    --br-sm: 4px;
-    --br-md: 8px;
+    --br-sm: 8px;
+    --br-md: 12px;
 }
 
 /* --- 卡片 --- */
