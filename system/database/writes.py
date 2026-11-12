@@ -1,6 +1,8 @@
 import csv
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
 
 from ..config import INVOICE_FIELD_NAMES, LEDGER_PATH
 
@@ -168,7 +170,12 @@ class WritesMixin:
                 return False, f"校验差额: {diff}"
 
     def export_to_csv(self, ledger_path=None):
-        csv_path = ledger_path or LEDGER_PATH
+        """导出台账到 CSV。
+
+        采用「临时文件 + os.replace 原子替换」：写到一半崩溃时，
+        原台账不会被截断，最坏只是本次导出未生效。
+        """
+        csv_path = Path(ledger_path or LEDGER_PATH)
         with self.connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM records ORDER BY process_time DESC")
@@ -178,14 +185,27 @@ class WritesMixin:
         header_map = INVOICE_FIELD_NAMES
         cn_headers = [header_map.get(c, c) for c in col_names]
 
-        with open(csv_path, 'w', newline='', encoding='utf-8-sig') as f:
-            writer = csv.writer(f)
-            writer.writerow(cn_headers)
-            for row in rows:
-                writer.writerow(row)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = csv_path.with_name(csv_path.name + '.tmp')
+        try:
+            with open(tmp_path, 'w', newline='', encoding='utf-8-sig') as f:
+                writer = csv.writer(f)
+                writer.writerow(cn_headers)
+                for row in rows:
+                    writer.writerow(row)
+            os.replace(str(tmp_path), str(csv_path))
+        except Exception:
+            # 失败则清理临时文件，保证不留半成品
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+            logger.exception(f"账本导出失败: {csv_path}")
+            raise
 
         logger.info(f"账本导出成功: {csv_path}")
-        return csv_path
+        return str(csv_path)
 
     def update_verify_status(self, invoice_num, verify_status, verify_result=None):
         with self.connection() as conn:

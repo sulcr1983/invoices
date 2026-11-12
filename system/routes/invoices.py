@@ -1,15 +1,20 @@
 from flask import Blueprint, request, send_file
 from datetime import datetime, timedelta
 from pathlib import Path
+import logging
+import mimetypes
 
 from .shared import db_manager, api_error
 from ..config import ARCHIVE_DIR
+
+logger = logging.getLogger(__name__)
 
 invoices_bp = Blueprint('invoices', __name__)
 
 
 @invoices_bp.route('/api/invoices', methods=['GET'])
 def get_invoices():
+    """按筛选、排序和分页条件返回发票台账列表。"""
     try:
         keyword = request.args.get('keyword')
         date_from = request.args.get('date_from')
@@ -24,8 +29,17 @@ def get_invoices():
         risk_flags = request.args.get('risk_flags')
         sort_field = request.args.get('sort_field', '')
         sort_dir = request.args.get('sort_dir', 'desc')
-        page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 10))
+
+        # 分页参数严格校验：非法值返回 400，而不是抛出 500
+        try:
+            page = int(request.args.get('page', 1))
+            limit = int(request.args.get('limit', 10))
+        except (TypeError, ValueError):
+            return {'status': 'error', 'message': 'page / limit 必须为整数'}, 400
+        if page < 1:
+            return {'status': 'error', 'message': 'page 必须大于等于 1'}, 400
+        if limit < 1 or limit > 200:
+            return {'status': 'error', 'message': 'limit 必须在 1-200 之间'}, 400
         offset = (page - 1) * limit
 
         order_by_map = {'date': 'date', 'amount': 'total_amount'}
@@ -67,10 +81,11 @@ def get_invoices():
             inv_type = record.get('invoice_type', '')
             if inv_date and '专' in inv_type:
                 try:
-                    d = datetime.strptime(inv_date, '%Y-%m-%d')
+                    d = datetime.strptime(inv_date, '%Y-%m-%d').date()
                     deadline = d + timedelta(days=360)
                     inv['deduction_deadline'] = deadline.strftime('%Y-%m-%d')
-                    remaining = (deadline - datetime.now()).days
+                    # 用 date 相减：当天到期不会被算成 -1 天而误判"已过期"
+                    remaining = (deadline - datetime.now().date()).days
                     inv['days_remaining'] = remaining
                     if remaining < 0:
                         inv['deadline_status'] = 'expired'
@@ -78,8 +93,8 @@ def get_invoices():
                         inv['deadline_status'] = 'expiring'
                     else:
                         inv['deadline_status'] = 'normal'
-                except Exception:
-                    pass
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"抵扣期限计算跳过 {record.get('invoice_num')}: {e}")
             invoices.append(inv)
 
         return {
@@ -142,7 +157,7 @@ def get_duplicate_invoices():
 @invoices_bp.route('/api/invoices/batch-certify', methods=['POST'])
 def batch_certify_invoices():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         invoice_nums = data.get('invoice_nums', [])
         certification_date = data.get('certification_date')
 
@@ -166,23 +181,24 @@ def batch_certify_invoices():
 
 @invoices_bp.route('/api/invoices/batch-verify', methods=['POST'])
 def batch_verify_invoices():
+    """批量查验选中的发票，并汇总成功、失败和跳过数量。"""
     try:
         from ..core.verify import (
             verify_invoice_baidu, is_verify_available, format_verify_result
         )
         from ..config import VERIFY_ENABLED, VERIFY_COST_PER_CALL
 
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         invoice_nums = data.get('invoice_nums', [])
 
         if not invoice_nums or not isinstance(invoice_nums, list):
             return {'status': 'error', 'message': '请提供发票号码列表'}, 400
 
         if not VERIFY_ENABLED:
-            return {'status': 'error', 'message': '验真功能未启用'}, 403
+            return {'status': 'error', 'message': '验真功能还没有打开，请先在设置文件中启用'}, 403
 
         if not is_verify_available():
-            return {'status': 'error', 'message': '百度API配置不完整'}, 403
+            return {'status': 'error', 'message': '验真服务还没配置好，请先填写百度接口信息'}, 403
 
         results = []
         success_count = 0
@@ -229,7 +245,10 @@ def batch_verify_invoices():
                 success_count += 1
             else:
                 fail_count += 1
-            total_cost += VERIFY_COST_PER_CALL
+            # 只有真正发出并拿到接口响应（detail 非空）才计费；
+            # 参数错误/未配置等本地失败不应计费。
+            if result.get('detail') is not None:
+                total_cost += VERIFY_COST_PER_CALL
 
         return {
             'status': 'success',
@@ -271,8 +290,10 @@ def get_invoice_original(invoice_num):
                 if not month_dir.is_dir():
                     continue
                 for fp in month_dir.iterdir():
-                    if fp.is_file() and invoice_num in fp.stem:
-                        return send_file(str(fp), mimetype='image/jpeg')
+                    # 精确匹配 _<发票号> 结尾，避免 1234 命中 12345
+                    if fp.is_file() and fp.stem.endswith('_' + invoice_num):
+                        mime, _ = mimetypes.guess_type(str(fp))
+                        return send_file(str(fp), mimetype=mime or 'application/octet-stream')
         return {'status': 'error', 'message': '原图未找到'}, 404
     except Exception as e:
         return api_error(str(e))
@@ -281,7 +302,7 @@ def get_invoice_original(invoice_num):
 @invoices_bp.route('/api/invoices/<invoice_num>/remark', methods=['PUT'])
 def update_invoice_remark(invoice_num):
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         remark = data.get('remark')
         success = db_manager.update_remark(invoice_num, remark)
         if not success:
@@ -294,7 +315,7 @@ def update_invoice_remark(invoice_num):
 @invoices_bp.route('/api/invoices/<invoice_num>/attribution', methods=['PUT'])
 def update_invoice_attribution(invoice_num):
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         department = data.get('department')
         project = data.get('project')
         expense_type = data.get('expense_type')
@@ -319,6 +340,7 @@ def get_sellers():
 
 @invoices_bp.route('/api/invoices/<invoice_num>/verify', methods=['POST'])
 def verify_single_invoice(invoice_num):
+    """查验单张发票，已查验过的发票直接返回现有状态。"""
     try:
         from ..core.verify import (
             verify_invoice_baidu,
@@ -345,13 +367,13 @@ def verify_single_invoice(invoice_num):
         if not VERIFY_ENABLED:
             return {
                 'status': 'error',
-                'message': '验真功能未启用，请在 .env 中设置 VERIFY_ENABLED=true'
+                'message': '验真功能还没有打开，请先在设置文件中启用',
             }, 403
 
         if not is_verify_available():
             return {
                 'status': 'error',
-                'message': '百度API配置不完整，请检查 .env 中的 BAIDU_API_KEY 和 BAIDU_SECRET_KEY'
+                'message': '验真服务还没配置好，请先填写百度接口信息',
             }, 403
 
         result = verify_invoice_baidu(record)
@@ -369,7 +391,8 @@ def verify_single_invoice(invoice_num):
                 'verify_status': result.get('status'),
                 'verify_message': result.get('message', ''),
                 'already_verified': False,
-                'cost': VERIFY_COST_PER_CALL
+                # 本地参数错误/未配置不应计费
+                'cost': VERIFY_COST_PER_CALL if result.get('detail') is not None else 0
             }
         }
     except Exception as e:

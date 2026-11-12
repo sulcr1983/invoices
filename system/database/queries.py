@@ -96,7 +96,67 @@ class QueriesMixin:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM records WHERE file_md5 = ?", (file_md5,))
             row = cursor.fetchone()
-            return row
+            if not row:
+                return None
+            # 统一返回 dict，避免调用方靠魔法下标取列（列顺序一变就静默取错）
+            return dict(zip([d[0] for d in cursor.description], row))
+
+    def get_status_counts(self):
+        """一次查询拿到待验真 / 待认证专票 / 异常发票数量。
+
+        前端原先拉 limit=1000 的列表在浏览器里自己数，超过 1000 条就会静默少算。
+        """
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                  SUM(CASE WHEN verify_status IS NULL OR verify_status IN ('unverified','') THEN 1 ELSE 0 END),
+                  SUM(CASE WHEN deduction_status = 'unverified' AND invoice_type LIKE '%专%' THEN 1 ELSE 0 END),
+                  SUM(CASE WHEN risk_flags IS NOT NULL AND risk_flags != '' THEN 1 ELSE 0 END)
+                FROM records
+            """)
+            row = cursor.fetchone() or (0, 0, 0)
+            return {
+                'verify_pending': int(row[0] or 0),
+                'certify_pending': int(row[1] or 0),
+                'risk': int(row[2] or 0),
+            }
+
+    def get_monthly_trend(self, months=6):
+        """按月聚合最近 N 个月（一次查询，避免每月建一次连接）。"""
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT strftime('%Y-%m', process_time) AS m,
+                       COUNT(*),
+                       COALESCE(SUM(total_amount), 0),
+                       COALESCE(SUM(price_without_tax), 0),
+                       COALESCE(SUM(tax_amount), 0)
+                FROM records
+                WHERE process_time IS NOT NULL AND process_time != ''
+                GROUP BY m ORDER BY m DESC LIMIT ?
+            """, (months,))
+            rows = cursor.fetchall()
+
+        result = []
+        now = datetime.now()
+        by_month = {r[0]: r for r in rows}
+        for i in range(months - 1, -1, -1):
+            m = now.month - i
+            y = now.year
+            while m <= 0:
+                m += 12
+                y -= 1
+            key = f"{y:04d}-{m:02d}"
+            r = by_month.get(key)
+            result.append({
+                'month': key,
+                'count': r[1] if r else 0,
+                'amount': round(r[2], 2) if r else 0,
+                'price': round(r[3], 2) if r else 0,
+                'tax': round(r[4], 2) if r else 0,
+            })
+        return result
 
     def get_stats(self):
         with self.connection() as conn:
@@ -212,6 +272,7 @@ class QueriesMixin:
     def get_input_tax_summary(self, period=None, date_from=None, date_to=None):
         with self.connection() as conn:
             cursor = conn.cursor()
+            today = datetime.now()
             if date_from or date_to:
                 where = "WHERE invoice_type LIKE '%专%'"
                 params_c = []
@@ -224,14 +285,42 @@ class QueriesMixin:
                     where += " AND date <= ?"
                     params_c.append(date_to)
                     params_u.append(date_to)
-                period_label = (date_from or '') + '~' + (date_to or '')
+                period_label = (date_from or '开始') + ' ~ ' + (date_to or '今天')
             else:
                 if not period:
-                    period = datetime.now().strftime("%Y-%m")
-                where = "WHERE invoice_type LIKE '%专%' AND strftime('%Y-%m', date) = ?"
-                params_c = [period]
-                params_u = [period]
-                period_label = period
+                    period = 'all'
+                if period == 'month':
+                    where = "WHERE invoice_type LIKE '%专%' AND substr(date, 1, 7) = ?"
+                    period_value = today.strftime("%Y-%m")
+                    period_label = today.strftime("%Y年%m月")
+                elif period == 'quarter':
+                    quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+                    quarter_end_month = quarter_start_month + 3
+                    q_start = f"{today.year:04d}-{quarter_start_month:02d}-01"
+                    if quarter_end_month > 12:
+                        q_end = f"{today.year + 1:04d}-{quarter_end_month - 12:02d}-01"
+                    else:
+                        q_end = f"{today.year:04d}-{quarter_end_month:02d}-01"
+                    # 季度必须有上界，否则会把未来季度的数据也算进来
+                    where = "WHERE invoice_type LIKE '%专%' AND date >= ? AND date < ?"
+                    params_c = [q_start, q_end]
+                    params_u = [q_start, q_end]
+                    period_label = f"{today.year}年第{((today.month - 1) // 3) + 1}季度"
+                    period_value = None
+                elif period == 'all':
+                    where = "WHERE invoice_type LIKE '%专%'"
+                    params_c = []
+                    params_u = []
+                    period_label = "全部数据"
+                    period_value = None
+                else:
+                    where = "WHERE invoice_type LIKE '%专%' AND substr(date, 1, 4) = ?"
+                    period_value = today.strftime("%Y")
+                    period_label = today.strftime("%Y年")
+
+                if period != 'all' and period != 'quarter':
+                    params_c = [period_value]
+                    params_u = [period_value]
 
             cursor.execute("""
                 SELECT tax_rate,

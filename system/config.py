@@ -17,7 +17,7 @@ DUPLICATE_DIR = PROJECT_ROOT / "重复发票记录"
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-DB_PATH = DATA_DIR / "invoices.db"
+DB_PATH = Path(os.environ.get("INVOICE_DB_PATH", str(DATA_DIR / "invoices.db")))
 LEDGER_PATH = PROJECT_ROOT / "发票台账.csv"
 LOG_PATH = BASE_DIR / "logs" / "app.log"
 LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -120,8 +120,8 @@ def err_to_cn(error_keyword):
         "ConnectionError": "网络连接失败，请检查网络后重试",
         "webhook": "企业微信推送失败，请检查网络和Webhook配置",
         "Timeout": "请求超时，请检查网络后重试",
-        "token": "百度OCR认证失败，请检查 .env 中的 API Key 配置",
-        "api_key": "百度OCR配置不完整，请在 .env 中配置 BAIDU_API_KEY 和 BAIDU_SECRET_KEY",
+        "token": "发票识别服务认证失败，请检查配置后重试",
+        "api_key": "发票识别服务还没配置好，请先填写接口信息",
         "OCR": "发票识别服务暂时不可用，请稍后重试",
         "extract": "发票识别失败，请检查文件是否清晰、完整",
         "md5": "文件读取失败，请检查文件是否损坏",
@@ -135,7 +135,7 @@ def err_to_cn(error_keyword):
     for key, msg in mapping.items():
         if key.lower() in str(error_keyword).lower():
             return msg
-    return f"系统处理异常，请稍后重试（错误码：{str(error_keyword)[:50]}）"
+    return "系统处理异常，请稍后重试"
 
 
 def setup_logging():

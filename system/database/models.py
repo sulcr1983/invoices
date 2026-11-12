@@ -57,7 +57,10 @@ class ModelsMixin:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_total_amount ON records(total_amount)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_process_time ON records(process_time)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_type ON records(invoice_type)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+            cursor.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_invoice_num "
+                "ON records(invoice_num) WHERE invoice_num IS NOT NULL AND invoice_num != ''"
+            )
             conn.commit()
             conn.close()
             logger.info("数据库初始化完成（新表结构）")
@@ -93,13 +96,31 @@ class ModelsMixin:
             if col_name not in existing_cols:
                 try:
                     cursor.execute(f"ALTER TABLE records ADD COLUMN {col_name} {col_type}")
-                except Exception:
-                    pass
+                except Exception as e:
+                    # 迁移失败不能静默：后续列缺失会在运行期变成 500
+                    logger.error(f"添加列失败 {col_name}: {e}")
 
+        # 发票号码唯一（部分索引：排除空值，允许多条空号历史记录）
+        # 注意：旧库可能存在同名的「普通索引」，IF NOT EXISTS 会误判为已存在，
+        # 因此先检查索引类型，非唯一则先 DROP 再重建。
         try:
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
-        except Exception:
-            pass
+            row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_records_invoice_num'"
+            ).fetchone()
+            if row and 'UNIQUE' not in (row[0] or '').upper():
+                cursor.execute("DROP INDEX idx_records_invoice_num")
+                logger.info("旧的非唯一发票号索引已移除，准备重建为唯一索引")
+            cursor.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_invoice_num "
+                "ON records(invoice_num) WHERE invoice_num IS NOT NULL AND invoice_num != ''"
+            )
+        except Exception as e:
+            # 若历史数据已有重复，退化为普通索引并明确告警（不静默）
+            logger.error(f"创建发票号唯一索引失败（可能存在历史重复号）: {e}")
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_invoice_num ON records(invoice_num)")
+            except Exception as e2:
+                logger.error(f"创建普通索引也失败: {e2}")
 
         conn.commit()
         conn.close()

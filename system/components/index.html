@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>天颐发票处理系统</title>
+    <title>SuperSu 发票处理系统</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="/assets/vendor/tailwind.min.js"></script>
+    <link href="/assets/vendor/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+    <script src="/assets/vendor/echarts.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -20,23 +19,33 @@
                         danger: '#ef4444',
                         accent: '#ec4899',
                         surface: '#ffffff',
-                        card: '#ffffff',
                         'text-primary': '#1e293b',
                         'text-secondary': '#64748b',
                         'text-muted': '#94a3b8',
                         'border-light': '#f1f5f9',
+                        'bg-subtle': '#f8fafc',
                     },
                     fontFamily: {
-                        sans: ['"Outfit"', '"PingFang SC"', '"Microsoft YaHei"', '"Helvetica Neue"', 'system-ui', 'sans-serif'],
+                        sans: ['"PingFang SC"', '"Microsoft YaHei"', '"Helvetica Neue"', 'system-ui', 'sans-serif'],
                         mono: ['"JetBrains Mono"', '"Consolas"', 'monospace'],
+                    },
+                    boxShadow: {
+                        'primary-sm': '0 2px 8px rgba(99,102,241,0.12)',
+                        'primary': '0 4px 14px rgba(99,102,241,0.20)',
+                    },
+                    borderRadius: {
+                        'xl': '20px',
+                        'lg': '16px',
+                        'md': '12px',
+                        'sm': '8px',
                     },
                 }
             }
         }
     </script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=8.0">
 </head>
-<body>
+<body style="background: linear-gradient(135deg, #f0f2f5 0%, #f8fafc 50%, #f0f2f5 100%); min-height: 100vh;">
 
     <!-- ===== 顶栏 ===== -->
     <header class="glass-header sticky top-0 z-50">
@@ -47,7 +56,7 @@
                         <i class="fa fa-file-text-o text-white text-sm"></i>
                     </div>
                     <div class="hidden sm:block">
-                        <h1 class="text-text-primary text-base font-bold">天颐发票处理系统</h1>
+                        <h1 class="text-text-primary text-base font-bold">SuperSu 发票处理系统</h1>
                     </div>
                 </div>
                 <nav class="flex items-center gap-1">
@@ -65,7 +74,7 @@
                 <div class="flex items-center gap-2">
                     <div class="relative hidden md:block">
                         <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-xs"></i>
-                        <input id="top-search-input" type="text" placeholder="搜索发票号码..." class="pl-8 pr-3 py-1.5 rounded-lg border border-border-light text-xs outline-none transition-all focus:border-primary-light" style="background:var(--color-bg-subtle);width:180px;">
+                        <input id="top-search-input" type="text" placeholder="搜索发票号码..." class="pl-8 pr-3 py-1.5 rounded-lg border border-border-light text-xs outline-none transition-all focus:border-primary-light focus:ring-2 focus:ring-primary/10" style="background:var(--color-bg-subtle);width:180px;">
                     </div>
                     <div class="flex items-center gap-1.5 rounded-lg px-2.5 py-1" style="background:var(--color-bg-subtle);">
                         <span class="status-dot green" id="status-dot"></span>
@@ -126,22 +135,22 @@
                 <span class="text-xs text-text-muted ml-1">当月数据总览</span>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-                <div class="glass-card p-4 float-up">
+                <div class="glass-card p-3 float-up">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-warning-bg);color:var(--color-warning);"><i class="fa fa-clock-o"></i></div>
-                        <div><p class="stat-label">待处理</p><p class="stat-number" style="color:var(--color-warning);font-size:24px;" id="stat-pending">-</p></div>
+                        <div><p class="stat-label">待处理</p><p class="stat-number" style="color:var(--color-warning);font-size:20px;" id="stat-pending">-</p></div>
                     </div>
                 </div>
-                <div class="glass-card p-4 float-up">
+                <div class="glass-card p-3 float-up">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-success-bg);color:var(--color-success);"><i class="fa fa-archive"></i></div>
-                        <div><p class="stat-label">已归档</p><p class="stat-number" style="color:var(--color-success);font-size:24px;" id="stat-archived">-</p><p class="text-xs text-text-muted mt-0.5" id="stat-archived-amt"></p></div>
+                        <div><p class="stat-label">已归档</p><p class="stat-number" style="color:var(--color-success);font-size:20px;" id="stat-archived">-</p><p class="text-xs text-text-muted mt-0.5" id="stat-archived-amt"></p></div>
                     </div>
                 </div>
-                <div class="glass-card p-4 float-up">
+                <div class="glass-card p-3 float-up">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-primary-bg);color:var(--color-primary);"><i class="fa fa-calendar-plus-o"></i></div>
-                        <div><p class="stat-label">本月新增</p><p class="stat-number" style="color:var(--color-primary);font-size:24px;" id="stat-month-cnt">-</p></div>
+                        <div><p class="stat-label">本月新增</p><p class="stat-number" style="color:var(--color-primary);font-size:20px;" id="stat-month-cnt">-</p></div>
                     </div>
                 </div>
             </div>
@@ -152,40 +161,43 @@
                 <h3 class="text-text-primary font-semibold text-sm">状态预警</h3>
                 <span class="text-xs text-text-muted ml-1">需关注的处理事项</span>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #ef4444;" onclick="switchPage('invoices');setTimeout(function(){document.getElementById('search-keyword').value='';document.getElementById('search-invoice-type').value='';loadInvoices(1);},200);">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                <div class="glass-card p-3 float-up cursor-pointer" style="border-left:3px solid #ef4444;" onclick="switchPage('invoices');setTimeout(function(){document.getElementById('search-keyword').value='';document.getElementById('search-invoice-type').value='';loadInvoices(1);},200);">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-danger-bg);color:var(--color-danger);"><i class="fa fa-shield"></i></div>
-                        <div><p class="stat-label">待验真发票</p><p class="stat-number" style="color:#ef4444;font-size:24px;" id="stat-verify-pending">0</p></div>
+                        <div><p class="stat-label">待验真发票</p><p class="stat-number" style="color:#ef4444;font-size:20px;" id="stat-verify-pending">0</p></div>
                     </div>
                 </div>
-                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #f59e0b;" onclick="switchPage('invoices');setTimeout(function(){document.getElementById('search-invoice-type').value='增值税专用发票';loadInvoices(1);},200);">
+                <div class="glass-card p-3 float-up cursor-pointer" style="border-left:3px solid #f59e0b;" onclick="switchPage('invoices');setTimeout(function(){document.getElementById('search-invoice-type').value='增值税专用发票';loadInvoices(1);},200);">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:var(--color-warning-bg);color:var(--color-warning);"><i class="fa fa-check-circle-o"></i></div>
-                        <div><p class="stat-label">待认证专票</p><p class="stat-number" style="color:#f59e0b;font-size:24px;" id="stat-certify-pending">0</p></div>
+                        <div><p class="stat-label">待认证专票</p><p class="stat-number" style="color:#f59e0b;font-size:20px;" id="stat-certify-pending">0</p></div>
                     </div>
                 </div>
-                <div class="glass-card p-4 float-up cursor-pointer" style="border-left:3px solid #dc2626;" onclick="switchPage('stats');setTimeout(function(){var el=document.getElementById('risk-alert-section');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},500);">
+                <div class="glass-card p-3 float-up cursor-pointer" style="border-left:3px solid #dc2626;" onclick="switchPage('stats');setTimeout(function(){var el=document.getElementById('risk-alert-section');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},500);">
                     <div class="flex items-center gap-3">
                         <div class="icon-circle" style="background:#fef2f2;color:#dc2626;"><i class="fa fa-exclamation-triangle"></i></div>
-                        <div><p class="stat-label">异常发票</p><p class="stat-number" style="color:#dc2626;font-size:24px;" id="stat-risk-alert">0</p></div>
+                        <div><p class="stat-label">异常发票</p><p class="stat-number" style="color:#dc2626;font-size:20px;" id="stat-risk-alert">0</p></div>
                     </div>
                 </div>
             </div>
 
 
-            <!-- 处理概览 -->
-            <div class="grid md:grid-cols-5 gap-4 mb-5">
-                <div class="md:col-span-3 glass-card p-4">
-                    <div class="flex items-center justify-between mb-3">
+            <!-- 月度趋势 + 最近处理发票（左右布局） -->
+            <div class="grid md:grid-cols-5 gap-3 mb-3">
+                <div class="glass-card p-3 md:col-span-2">
+                    <div class="flex items-center justify-between mb-2">
                         <h3 class="text-text-primary font-semibold text-sm"><i class="fa fa-bar-chart" style="color:var(--color-primary);margin-right:6px;"></i>月度处理趋势</h3>
                         <span class="badge badge-primary" id="trend-total">总计 - 笔</span>
                     </div>
                     <div class="bar-chart" id="trend-chart"></div>
                 </div>
-                <div class="md:col-span-2 glass-card p-4">
-                    <h3 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-history" style="color:var(--color-primary);margin-right:6px;"></i>最近处理</h3>
-                    <div id="recent-results"><div class="text-text-muted text-sm text-center py-5">暂无处理记录</div></div>
+                <div class="glass-card md:col-span-3" style="display:flex;flex-direction:column;">
+                    <div style="padding:12px 16px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-border-light);">
+                        <h3 class="text-text-primary font-semibold text-sm"><i class="fa fa-history" style="color:var(--color-primary);margin-right:6px;"></i>最近处理发票</h3>
+                        <span class="text-text-muted" style="font-size:10px;" id="recent-count"></span>
+                    </div>
+                    <div style="flex:1;overflow-y:auto;" id="recent-results"><div class="text-text-muted text-sm text-center py-5">暂无处理记录</div></div>
                 </div>
             </div>
 
@@ -370,98 +382,120 @@
                             <tbody id="duplicates-table-body"><tr><td colspan="7" class="text-center py-8 text-text-muted">暂无重复发票记录</td></tr></tbody>
                         </table>
                     </div>
+                    <div id="duplicates-pagination"></div>
                 </div>
             </div>
         </div>
 
         <!-- ===== 页面3：统计分析 ===== -->
         <div id="page-stats" class="page-content">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-2">
-                    <button class="stats-period-btn" data-period="month" onclick="switchStatsPeriod('month',this)">本月</button>
-                    <button class="stats-period-btn" data-period="quarter" onclick="switchStatsPeriod('quarter',this)">本季度</button>
-                    <button class="stats-period-btn" data-period="year" onclick="switchStatsPeriod('year',this)">本年度</button>
-                    <button class="stats-period-btn active" data-period="all" onclick="switchStatsPeriod('all',this)">全部</button>
-                    <span style="width:1px;height:16px;background:var(--color-border-light);margin:0 4px;"></span>
-                    <input type="date" id="stats-date-from" class="form-input" style="width:auto;font-size:12px;padding:4px 8px;" onchange="onStatsDateChange()">
-                    <span class="text-text-muted text-xs">至</span>
-                    <input type="date" id="stats-date-to" class="form-input" style="width:auto;font-size:12px;padding:4px 8px;" onchange="onStatsDateChange()">
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs text-text-muted" id="stats-period-label">全部数据</span>
-                    <button class="btn-ghost" style="font-size:12px;padding:4px 10px;" onclick="exportStatsReport()" title="导出统计报表"><i class="fa fa-download"></i> 导出报表</button>
+
+            <!-- 周期选择栏（轻量工具栏） -->
+            <div class="mb-4 pb-3" style="border-bottom:1px solid #e0dce8;">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-medium" style="color:var(--color-text-muted);letter-spacing:0.04em;">统计周期</span>
+                        <button class="stats-period-btn" data-period="month" onclick="switchStatsPeriod('month',this)">本月</button>
+                        <button class="stats-period-btn" data-period="quarter" onclick="switchStatsPeriod('quarter',this)">本季度</button>
+                        <button class="stats-period-btn" data-period="year" onclick="switchStatsPeriod('year',this)">本年度</button>
+                        <button class="stats-period-btn active" data-period="all" onclick="switchStatsPeriod('all',this)">全部</button>
+                        <span style="width:1px;height:14px;background:#e0dce8;margin:0 4px;"></span>
+                        <input type="date" id="stats-date-from" class="input-field" style="width:120px;font-size:12px;padding:4px 8px;" onchange="onStatsDateChange()">
+                        <span class="text-text-muted" style="font-size:11px;">至</span>
+                        <input type="date" id="stats-date-to" class="input-field" style="width:120px;font-size:12px;padding:4px 8px;" onchange="onStatsDateChange()">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs" style="color:var(--color-text-muted);padding:3px 10px;background:#f0eef5;border-radius:6px;" id="stats-period-label">全部数据</span>
+                        <button id="btn-export-stats-report" class="btn-ghost" style="font-size:11px;" onclick="exportStatsReport(this)"><i class="fa fa-download"></i> 导出报表</button>
+                    </div>
                 </div>
             </div>
+
+            <!-- 核心指标卡片（4个） -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <div class="glass-card p-3 cursor-pointer" onclick="switchPage('invoices')" title="点击查看发票列表">
-                    <p class="text-text-muted text-xs mb-0.5">发票总额</p>
-                    <p class="text-lg font-bold" style="color:var(--color-primary)" id="stat-total-amt">¥0</p>
-                    <p class="text-xs text-text-muted mt-0.5" id="stat-total-cnt">共 0 张</p>
+                <div class="glass-card cursor-pointer overflow-hidden" onclick="switchPage('invoices')" title="点击查看发票列表" style="position:relative;">
+                    <div style="padding:16px 16px 14px;">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+                            <p style="font-size:11px;color:var(--color-text-muted);font-weight:500;letter-spacing:0.04em;">发票总额</p>
+                            <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:var(--color-primary);font-size:16px;"><i class="fa fa-file-text-o"></i></div>
+                        </div>
+                        <p style="font-size:24px;font-weight:700;color:var(--color-text);line-height:1.2;letter-spacing:-0.03em;font-family:'JetBrains Mono',monospace;" id="stat-total-amt">¥0</p>
+                        <p style="font-size:11px;color:var(--color-text-muted);margin-top:6px;" id="stat-total-cnt">共 0 张</p>
+                    </div>
                 </div>
-                <div class="glass-card p-3">
-                    <p class="text-text-muted text-xs mb-0.5">不含税金额</p>
-                    <p class="text-lg font-bold" style="color:var(--color-success)" id="stat-total-price">¥0</p>
+                <div class="glass-card overflow-hidden" style="position:relative;">
+                    <div style="padding:16px 16px 14px;">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+                            <p style="font-size:11px;color:var(--color-text-muted);font-weight:500;letter-spacing:0.04em;">不含税金额</p>
+                            <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:var(--color-success);font-size:16px;"><i class="fa fa-money"></i></div>
+                        </div>
+                        <p style="font-size:24px;font-weight:700;color:var(--color-success);line-height:1.2;letter-spacing:-0.03em;font-family:'JetBrains Mono',monospace;" id="stat-total-price">¥0</p>
+                    </div>
                 </div>
-                <div class="glass-card p-3 cursor-pointer" onclick="switchPage('invoices')" title="点击查看发票列表">
-                    <p class="text-text-muted text-xs mb-0.5">税额合计</p>
-                    <p class="text-lg font-bold" style="color:var(--color-warning)" id="stat-total-tax">¥0</p>
+                <div class="glass-card cursor-pointer overflow-hidden" onclick="switchPage('invoices')" title="点击查看发票列表" style="position:relative;">
+                    <div style="padding:16px 16px 14px;">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+                            <p style="font-size:11px;color:var(--color-text-muted);font-weight:500;letter-spacing:0.04em;">税额合计</p>
+                            <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:var(--color-warning);font-size:16px;"><i class="fa fa-calculator"></i></div>
+                        </div>
+                        <p style="font-size:24px;font-weight:700;color:var(--color-warning);line-height:1.2;letter-spacing:-0.03em;font-family:'JetBrains Mono',monospace;" id="stat-total-tax">¥0</p>
+                    </div>
                 </div>
-                <div class="glass-card p-3 cursor-pointer" onclick="switchPage('invoices')" title="点击查看发票列表">
-                    <p class="text-text-muted text-xs mb-0.5">销售方数量</p>
-                    <p class="text-lg font-bold" style="color:var(--color-accent)" id="stat-seller-cnt">0</p>
+                <div class="glass-card cursor-pointer overflow-hidden" onclick="switchPage('invoices')" title="点击查看发票列表" style="position:relative;">
+                    <div style="padding:16px 16px 14px;">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+                            <p style="font-size:11px;color:var(--color-text-muted);font-weight:500;letter-spacing:0.04em;">销售方数量</p>
+                            <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fdf2f8,#fce7f3);color:var(--color-accent);font-size:16px;"><i class="fa fa-building"></i></div>
+                        </div>
+                        <p style="font-size:24px;font-weight:700;color:var(--color-accent);line-height:1.2;letter-spacing:-0.03em;font-family:'JetBrains Mono',monospace;" id="stat-seller-cnt">0</p>
+                    </div>
                 </div>
             </div>
-            <div class="glass-card p-4 mb-3" id="invoice-type-section" style="display:none;">
-                <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-pie-chart" style="color:var(--color-primary);margin-right:5px;"></i>发票类型占比</h4>
-                <div id="invoice-type-chart"></div>
-            </div>
-            <div class="grid md:grid-cols-2 gap-3 mb-3">
-                <div class="glass-card p-4">
-                    <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-building" style="color:var(--color-primary);margin-right:5px;"></i>销售方金额 TOP10</h4>
-                    <div id="seller-ranking"></div>
-                </div>
-                <div class="glass-card p-4">
+
+            <!-- 月度金额趋势（主要图表，占宽） + 销售方排名 -->
+            <div class="grid md:grid-cols-3 gap-3 mb-3">
+                <div class="glass-card p-4 md:col-span-2">
                     <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-calendar" style="color:var(--color-primary);margin-right:5px;"></i>月度金额趋势</h4>
                     <div id="monthly-amount-chart"></div>
                 </div>
-            </div>
-            <div class="glass-card p-4 mb-3">
-                <div class="flex items-center justify-between mb-3">
-                    <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-calculator" style="color:var(--color-primary);margin-right:5px;"></i><span id="input-tax-title">进项税额汇总</span></h4>
-                    <span class="text-xs text-text-muted" id="input-tax-period"></span>
-                </div>
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <div style="background:var(--color-success-bg);border-radius:var(--radius-md);padding:12px;">
-                        <p class="text-text-muted text-xs">已认证税额</p>
-                        <p class="text-lg font-bold" style="color:var(--color-success);" id="input-tax-certified">¥0.00</p>
-                        <p class="text-xs text-text-muted" id="input-tax-certified-cnt">0 张</p>
+                <div class="glass-card p-4">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-building" style="color:var(--color-primary);margin-right:5px;"></i>销售方金额 TOP5</h4>
+                        <span onclick="switchPage('invoices')" style="font-size:11px;color:var(--color-text-muted);cursor:pointer;transition:color 0.15s;display:inline-flex;align-items:center;gap:3px;" onmouseenter="this.style.color='var(--color-primary)'" onmouseleave="this.style.color='var(--color-text-muted)'">查看全部 <i class="fa fa-angle-right" style="font-size:10px;"></i></span>
                     </div>
-                    <div style="background:var(--color-warning-bg);border-radius:var(--radius-md);padding:12px;">
-                        <p class="text-text-muted text-xs">待认证税额</p>
-                        <p class="text-lg font-bold" style="color:var(--color-warning);" id="input-tax-unverified">¥0.00</p>
-                        <p class="text-xs text-text-muted" id="input-tax-unverified-cnt">0 张</p>
-                    </div>
+                    <div id="seller-ranking"></div>
                 </div>
-                <div id="input-tax-detail-table"></div>
             </div>
+
+            <!-- 部门/费用分布（始终可见） -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <div class="glass-card p-4">
                     <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-pie-chart" style="color:var(--color-primary);margin-right:5px;"></i>部门费用分布</h4>
-                    <div id="dept-distribution-chart" style="height:220px;"></div>
+                    <div id="dept-distribution-chart" style="height:200px;"></div>
                 </div>
                 <div class="glass-card p-4">
                     <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-bar-chart" style="color:var(--color-primary);margin-right:5px;"></i>费用类型分布</h4>
-                    <div id="expense-type-chart" style="height:220px;"></div>
+                    <div id="expense-type-chart" style="height:200px;"></div>
                 </div>
             </div>
-            <div class="glass-card p-4" id="risk-alert-section" style="display:none;">
-                <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-exclamation-triangle" style="color:#ef4444;margin-right:5px;"></i>异常发票提醒</h4>
-                    <span class="text-xs font-bold" style="color:#ef4444;" id="risk-alert-count"></span>
+
+            <!-- 发票类型占比 + 异常发票提醒（条件显示，放在底部避免破坏布局） -->
+            <div class="grid md:grid-cols-2 gap-3 mb-2">
+                <div class="glass-card p-4" id="invoice-type-section" style="display:none;">
+                    <h4 class="text-text-primary font-semibold text-sm mb-3"><i class="fa fa-pie-chart" style="color:var(--color-primary);margin-right:5px;"></i>发票类型占比</h4>
+                    <div id="invoice-type-chart" style="height:200px;"></div>
                 </div>
-                <p class="text-xs text-text-muted mb-3">以下发票存在金额或开票行为异常，建议重点关注审批流程。点击行可查看详情。</p>
-                <div class="detail-verify-result-content" style="max-height:none;" id="risk-alert-list"></div>
+                <div class="glass-card p-4" id="risk-alert-section" style="display:none;">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-text-primary font-semibold text-sm"><i class="fa fa-exclamation-triangle" style="color:#ef4444;margin-right:5px;"></i>异常发票提醒</h4>
+                        <span class="text-xs font-bold" style="color:#ef4444;" id="risk-alert-count"></span>
+                    </div>
+                    <p class="text-xs" style="color:#94a3b8;margin-bottom:10px;">以下发票存在金额或开票行为异常</p>
+                    <div class="detail-verify-result-content" style="max-height:none;" id="risk-alert-list"></div>
+                </div>
             </div>
+
+        </div>
         </div>
 
     </main>
@@ -675,7 +709,7 @@
                 </div>
                 <div style="display:flex;gap:12px;justify-content:center;">
                     <button onclick="closeBatchVerifyConfirm()" class="btn-ghost" style="min-width:120px;justify-content:center;">取消</button>
-                    <button onclick="confirmBatchVerify()" class="btn-primary btn-primary-sm" style="min-width:120px;justify-content:center;"><i class="fa fa-check"></i> 确认验真</button>
+                    <button id="btn-confirm-batch-verify" onclick="confirmBatchVerify()" class="btn-primary btn-primary-sm" style="min-width:120px;justify-content:center;"><i class="fa fa-check"></i> 确认验真</button>
                 </div>
             </div>
         </div>
@@ -716,9 +750,9 @@
     <!-- 通用弹窗 -->
     <div class="modal-overlay" id="generic-modal">
         <div class="modal-box" style="max-width:480px;">
-            <div class="flex items-center justify-between px-5 py-3" style="background:var(--color-primary-bg);border-bottom:1px solid #e0e7ff;">
+            <div class="flex items-center justify-between px-5 py-3" style="background:linear-gradient(135deg,#f8fafc,#eef2ff);border-bottom:1px solid #e2e8f0;">
                 <h3 class="text-text-primary font-bold text-base" id="generic-modal-title"></h3>
-                <button onclick="closeGenericModal()" class="w-8 h-8 rounded-lg hover:bg-white/60 flex items-center justify-center transition-all"><i class="fa fa-times text-text-muted"></i></button>
+                <button onclick="closeGenericModal()" class="w-8 h-8 rounded-lg hover:bg-white/80 flex items-center justify-center transition-all"><i class="fa fa-times text-text-muted"></i></button>
             </div>
             <div class="p-5" id="generic-modal-body"></div>
         </div>
@@ -729,8 +763,8 @@
         <div class="modal-box" style="max-width:420px;">
             <div class="flex items-center justify-between px-5 py-3" style="background:linear-gradient(135deg,#f8fafc,#eef2ff);border-bottom:1px solid #e2e8f0;">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--color-primary);"><i class="fa fa-tag text-white" style="font-size:13px;"></i></div>
-                    <h3 style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:#1e293b;">批量设置归属</h3>
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--color-primary);box-shadow:var(--shadow-primary-sm);"><i class="fa fa-tag text-white" style="font-size:13px;"></i></div>
+                    <h3 class="text-text-primary font-bold text-base">批量设置归属</h3>
                 </div>
                 <button onclick="closeBatchAttributionModal()" class="w-8 h-8 rounded-lg hover:bg-white/80 flex items-center justify-center transition-all"><i class="fa fa-times text-text-muted"></i></button>
             </div>
@@ -755,7 +789,7 @@
                 </div>
                 <div class="flex gap-2 mt-5">
                     <button onclick="closeBatchAttributionModal()" class="btn-ghost flex-1">取消</button>
-                    <button onclick="doBatchAttribution()" class="btn-primary btn-primary-sm flex-1"><i class="fa fa-save"></i> 确认设置</button>
+                    <button id="btn-confirm-batch-attribution" onclick="doBatchAttribution()" class="btn-primary btn-primary-sm flex-1"><i class="fa fa-save"></i> 确认设置</button>
                 </div>
             </div>
         </div>

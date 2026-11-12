@@ -14,10 +14,28 @@ def ensure_directories():
     logger.info("所有目录检查完成")
 
 
+_PENDING_EXTS = {'.pdf', '.ofd', '.jpg', '.jpeg', '.png'}
+
+
 def scan_pending_files():
+    """扫描待识别目录，只返回受支持的发票文件。
+
+    之前会把 desktop.ini、.gitkeep、.db 等一并送入流水线，
+    白白消耗 OCR 额度并制造"失败文件"。
+    """
     try:
         input_path = Path(INPUT_DIR)
-        files = [f.name for f in input_path.iterdir() if f.is_file()]
+        files = []
+        skipped = []
+        for f in input_path.iterdir():
+            if not f.is_file():
+                continue
+            if f.suffix.lower() in _PENDING_EXTS:
+                files.append(f.name)
+            else:
+                skipped.append(f.name)
+        if skipped:
+            logger.warning(f"跳过非发票文件 {len(skipped)} 个: {', '.join(skipped[:5])}")
         logger.debug(f"扫描待处理文件: 发现 {len(files)} 个文件")
         return files
     except Exception as e:
@@ -26,10 +44,9 @@ def scan_pending_files():
 
 
 def sanitize_filename(name):
-    invalid_chars = '\\/:*?"<>|'
-    for char in invalid_chars:
-        name = name.replace(char, '_')
-    return name.strip('_')
+    """文件名清洗：与 clean_seller_name 共用同一套规则，避免两份实现漂移。"""
+    from ..core.data_utils import clean_seller_name
+    return clean_seller_name(name)
 
 
 def get_archive_path(seller, invoice_num, amount, ext, invoice_date=None):
@@ -53,27 +70,17 @@ def get_archive_path(seller, invoice_num, amount, ext, invoice_date=None):
     archive_subdir = Path(ARCHIVE_DIR) / year / month
     archive_subdir.mkdir(parents=True, exist_ok=True)
 
-    existing_files = []
-    if archive_subdir.exists():
-        for fp in archive_subdir.iterdir():
-            if fp.is_file() and fp.stem.endswith(f"_{invoice_num}"):
-                existing_files.append(fp.name)
-
-    if existing_files:
-        existing_path = str(archive_subdir / existing_files[0])
-        logger.info(f"发票已存在归档: {existing_path}")
-        return existing_path
-
     seller_clean = sanitize_filename(seller) if seller else '未知单位'
     amount_str = f"{amount:.2f}" if amount else '0.00'
     base_name = f"{date_str}_{seller_clean}_{amount_str}_{invoice_num}{ext}"
 
+    # 重名一律走 _1/_2 递增，绝不返回已存在的旧路径，
+    # 否则新文件会滞留在处理中目录且下次不再被扫描（静默丢件）。
     target_path = archive_subdir / base_name
     counter = 1
     while target_path.exists():
         name_parts = base_name.rsplit('.', 1)
-        base_name = f"{name_parts[0]}_{counter}.{name_parts[1]}"
-        target_path = archive_subdir / base_name
+        target_path = archive_subdir / f"{name_parts[0]}_{counter}.{name_parts[1]}"
         counter += 1
 
     return str(target_path)
@@ -110,9 +117,14 @@ def move_from_processing(src_path, dest_path):
     if not src.exists():
         raise FileNotFoundError(f"源文件不存在: {src_path}")
 
+    # 目标已存在时自动改名，绝不静默跳过（否则原件会永久滞留在处理中目录）
     if dest.exists():
-        logger.info(f"目标文件已存在，跳过移动: {dest_path}")
-        return str(dest)
+        stem, suffix = dest.stem, dest.suffix
+        counter = 1
+        while dest.exists():
+            dest = dest.with_name(f"{stem}_{counter}{suffix}")
+            counter += 1
+        logger.warning(f"归档目标已存在，改用新路径: {dest}")
 
     dest_dir = dest.parent
     if not dest_dir.exists():

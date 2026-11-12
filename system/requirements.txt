@@ -1,13 +1,21 @@
-# 天颐发票处理系统 - 依赖清单
-# Python >= 3.8
+# SuperSu 发票处理系统 - 依赖清单
+# Python >= 3.9（Flask 3.x 最低要求）
 # 安装: pip install -r requirements.txt
 
-# 核心依赖
-Flask==3.1.0                # Web API服务器
-requests==2.32.3            # HTTP请求（百度OCR、Webhook推送）
-pillow==11.1.0              # 图片处理
-python-dotenv==1.1.0        # .env 配置文件读取
+# -------- 核心依赖 --------
+Flask==3.1.0                # Web API 服务器
+requests==2.32.3            # HTTP 请求（百度 OCR、Webhook 推送）
+pillow==11.1.0              # 图片读取（本地 OCR 预处理）
+python-dotenv==1.1.0        # .env 配置读取
 
-# PDF处理
-pdfplumber==0.11.5          # PDF文本提取（后备方案）
-PyMuPDF==1.25.4             # PDF转图片渲染（百度OCR预处理，速度比pdfplumber快10倍）
+# -------- PDF / OFD 处理 --------
+pdfplumber==0.11.5          # PDF 文本层提取
+PyMuPDF==1.25.4             # PDF 渲染为图片（OCR 预处理）
+easyofd==20260427           # OFD 转换兜底（转 PDF 后复用文本/OCR 通道）
+
+# -------- 本地识别与去重（可选能力，缺失时自动降级）--------
+rapidocr-onnxruntime==1.2.3 # 本地离线 OCR（无需联网、按次不收费）
+rapidfuzz==3.14.6           # 模糊去重（MD5 之外的二次判定）
+
+# -------- 测试（开发环境）--------
+pytest>=8.0                 # 运行 system/tests/test_api.py

@@ -110,6 +110,18 @@ class WebhooksMixin:
             conn.commit()
             logger.info(f"推送成功更新: {invoice_num}")
 
+    def update_push_skipped(self, invoice_num, reason='无推送目标'):
+        """没有配置任何 webhook 时使用：标记为 skipped，而非伪造成 success。"""
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE records
+                SET push_status = 'skipped', last_error = ?
+                WHERE invoice_num = ?
+            """, (reason, invoice_num))
+            conn.commit()
+            logger.info(f"推送跳过(无目标): {invoice_num}")
+
     def update_push_failed(self, invoice_num, retry_count, last_error, error_type='api_error'):
         with self.connection() as conn:
             cursor = conn.cursor()

@@ -48,17 +48,24 @@ INVOICE_TYPE_MAP = {
 VERIFY_API_URL = "https://aip.baidubce.com/rest/2.0/ocr/v1/vat_invoice_verification"
 
 
-def _map_invoice_type(invoice_type_str):
-    if not invoice_type_str:
-        return '0'
-    for key, code in INVOICE_TYPE_MAP.items():
-        if key in invoice_type_str:
-            return code
-    if '专' in invoice_type_str:
-        return '0'
-    if '普' in invoice_type_str:
-        return '1'
-    return '0'
+def _map_invoice_type(invoice_type_str, invoice_num=''):
+    """把发票类型文本映射为百度验真的类型码。
+
+    返回 '' 表示无法判断——此时调用方不应上传该参数，
+    而不是像以前那样默认按专票('0')上报（这是历史 11/11 验真失败的直接原因）。
+    """
+    if invoice_type_str:
+        for key, code in INVOICE_TYPE_MAP.items():
+            if key in invoice_type_str:
+                return code
+        if '专' in invoice_type_str:
+            return '0'
+        if '普' in invoice_type_str:
+            return '1'
+    # 数电票（全电发票）号码为 20 位，无发票代码
+    if invoice_num and len(re.sub(r'\D', '', invoice_num)) == 20:
+        return '8'
+    return ''
 
 
 def _format_invoice_date(date_str):
@@ -78,11 +85,12 @@ def _extract_check_code_suffix(check_code, length=6):
 
 
 def verify_invoice_baidu(invoice_data):
+    """调用百度验真服务核对单张发票，并返回适合前端展示的查验结果。"""
     access_token = get_baidu_access_token()
     if not access_token:
         return {
             'status': VERIFY_STATUS_FAILED,
-            'message': '百度API认证失败，请检查API Key配置',
+            'message': '验真服务还没配置好，请先填写接口信息',
             'detail': None
         }
 
@@ -90,8 +98,9 @@ def verify_invoice_baidu(invoice_data):
     invoice_num = invoice_data.get('invoice_num', '')
     invoice_date = _format_invoice_date(invoice_data.get('date', ''))
     check_code = _extract_check_code_suffix(invoice_data.get('check_code', ''))
-    invoice_type = _map_invoice_type(invoice_data.get('invoice_type', ''))
-    total_amount = str(invoice_data.get('price_without_tax', ''))
+    invoice_type = _map_invoice_type(invoice_data.get('invoice_type', ''), invoice_num)
+    # 百度验真要求的是「价税合计」，此前误传了不含税金额
+    total_amount = str(invoice_data.get('total_amount', ''))
 
     if not invoice_num:
         return {
@@ -105,9 +114,11 @@ def verify_invoice_baidu(invoice_data):
         'invoice_num': invoice_num,
         'invoice_date': invoice_date,
         'check_code': check_code,
-        'invoice_type': invoice_type,
         'total_amount': total_amount,
     }
+    # 类型无法判断时不传该参数，避免 invalid parameter invoice_type
+    if invoice_type:
+        params['invoice_type'] = invoice_type
 
     url = f"{VERIFY_API_URL}?access_token={access_token}"
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -120,7 +131,7 @@ def verify_invoice_baidu(invoice_data):
             logger.error(f"百度验真HTTP错误: {response.status_code}")
             return {
                 'status': VERIFY_STATUS_FAILED,
-                'message': f'验真服务HTTP错误({response.status_code})',
+                'message': '验真服务暂时不可用，请稍后重试',
                 'detail': None
             }
 
@@ -132,7 +143,7 @@ def verify_invoice_baidu(invoice_data):
             logger.error(f"百度验真API错误: code={error_code}, msg={error_msg}")
             return {
                 'status': VERIFY_STATUS_FAILED,
-                'message': f'验真失败: {error_msg}',
+                'message': '验真失败，请核对发票信息后重试',
                 'detail': result
             }
 
@@ -153,7 +164,7 @@ def verify_invoice_baidu(invoice_data):
             message = verify_message or '查验失败，发票信息不一致'
         else:
             status = VERIFY_STATUS_FAILED
-            message = verify_message or f'查验结果异常(代码:{verify_result_code})'
+            message = verify_message or '查验结果暂时无法确认，请稍后重试'
 
         logger.info(f"百度验真结果: {invoice_num} -> {status} / {message}")
         return {
@@ -173,12 +184,13 @@ def verify_invoice_baidu(invoice_data):
         logger.error(f"百度验真异常: {invoice_num}, 错误: {e}")
         return {
             'status': VERIFY_STATUS_FAILED,
-            'message': f'验真服务异常: {str(e)[:100]}',
+            'message': '验真服务暂时不可用，请稍后重试',
             'detail': None
         }
 
 
 def verify_invoice_mock(invoice_data):
+    """在未启用正式验真时返回待查验状态。"""
     return {
         'status': VERIFY_STATUS_UNVERIFIED,
         'message': '功能待开通',

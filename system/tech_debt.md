@@ -1,77 +1,51 @@
-# 技术债务归档
+# 技术债务清单
 
-> 扫描时间: 2026-05-05 | 版本: v6.0 | 状态: 全部已处理 ✅
+> 更新时间：2026-11-12 | 对应版本：v11.1
+> 本文件已从「历史归档（曾声称全部已处理）」降级为**待办清单**，只记录当前真实状态。
+> 检视依据：`docs/AUDIT-2026-11-12.md`（含实测证据）。
 
-## P1 - 高优先级 ✅ 全部已处理
+## 已关闭（本轮修复，有代码/测试佐证）
 
-### 1. sys.path Hack 模式 ✅
-- **位置**: 10个文件
-- **原问题**: 每个文件都有 `_THIS_DIR` / `_PARENT_DIR` + `sys.path.insert` hack，以及双重 `try/except ImportError` 导入模式
-- **处理**: 全部改为相对导入，删除所有 `sys.path.insert` 和 `except ImportError` fallback
-- **涉及文件**: `baidu_ocr.py`, `invoice_parser.py`, `text_invoice_parser.py`, `ofd_parser.py`, `pipeline.py`, `routes/shared.py`, `routes/system.py`, `routes/tasks.py`, `routes/dashboard.py`, `db_manager.py`, `main.py`, `api_server.py`, `extractor.py`, `file_service.py`, `webhook_payload.py`, `invoice_service.py`, `sync_service.py`
+| 项 | 处理方式 |
+|:--|:--|
+| 上传文件名未清洗（路径穿越） | `routes/tasks.py` 新增 `_safe_upload_name`，剥路径 + 后缀白名单 |
+| 测试脚本被 pytest 收集会删真实文件 | `test_cases.py` 改名 `manual_stress.py`，且必须 `--force` 才执行 |
+| 无 webhook 时伪造成推送成功 | 新增 `update_push_skipped`，状态记 `skipped` |
+| Web 模式日志从未初始化 | `create_app()` 首行调用 `setup_logging()` |
+| 台账 CSV 非原子写 | 临时文件 + `os.replace()` 原子替换 |
+| 数据库无备份 | 启动时 `sqlite3.backup()` 生成 `invoices.db.backup` |
+| 发票号无唯一约束 | 部分唯一索引（排除空号） |
+| 前端日志面板重复渲染 | 后端 `seq` 增量拉取 |
+| 验真参数错（11/11 失败） | 改用价税合计；类型无法判断时不传 `invoice_type` |
+| 批量验真结果恒空 | 修正 `apiRequest` 二次解包 |
+| `limit=0` → 500 | 分页参数校验，非法返 400 |
+| 归档重名导致文件滞留 | 重名走 `_1` 递增 + 归档后校验原件已离开 |
+| 处理中目录无恢复 | 启动时 `recover_processing_dir()` |
+| 失败目录无限重投 | 重投上限 `RETRY_MAX_ATTEMPTS`（默认 3） |
+| 统计接口连接泄漏 | 改用 `with db_manager.connection()` |
+| 原件定位子串误匹配 | 改为 `stem.endswith('_'+num)` + 按年月限定 |
+| 前端依赖 4 个 CDN | tailwind / echarts / font-awesome 已本地化 |
+| Docker 会把 .env 与真实数据打进镜像 | 新增 `.dockerignore`，Dockerfile 改为按需 COPY |
 
-### 2. 猴子补丁 (Monkey Patching) 模式 ✅
-- **原问题**: 所有 DBManager 方法通过猴子补丁附加
-- **处理**: 重构为 Mixin 类继承模式
-  - `models.py` → `ModelsMixin`
-  - `queries.py` → `QueriesMixin`
-  - `writes.py` → `WritesMixin`
-  - `webhooks.py` → `WebhooksMixin`
-  - `locks.py` → `LocksMixin`
-  - `connection.py` → `DBManager(ModelsMixin, QueriesMixin, WritesMixin, WebhooksMixin, LocksMixin)`
+## 未关闭（已知，待排期）
 
-### 3. RECORD_COLUMNS 重复定义 ✅
-- **原问题**: 同一常量在3个文件中独立定义
-- **处理**: 提取到 `database/columns.py` 作为单一数据源，所有引用统一从此处导入
+| 优先级 | 项 | 原因 / 下一步 |
+|:--|:--|:--|
+| P2 | `core/ofd_parser.py` 683 行，含重复的购销方提取与税率归一化 | 建议拆 `ofd_xml.py` / `ofd_text.py`，抽 `normalize_tax_rate()`；改动面大，需 OFD 样本回归 |
+| P2 | `components/app.js` 单文件 1900+ 行 | 建议按 dashboard/invoices/stats 拆模块，需前端构建链 |
+| P2 | 仪表盘/统计 SQL 仍散在路由层 | 已下沉 `get_status_counts()` / `get_monthly_trend()`，其余可继续下沉 |
+| P2 | `invoices.py` 与 `system.py` 各有一套"看原件"实现 | 已统一为精确匹配；建议再抽 `resolve_original()` 单一入口 |
+| P2 | `deduction_status` 字段被复用作"认证状态/到期状态" | 语义过载，需新增独立字段并迁移 |
+| P2 | `certification_status` 与 DB `deduction_status` 命名不一致 | 前端契约已固定，改名需同步前端 |
+| P3 | `main.py` CLI 无文档 | 已在 README 目录树标注，待补 `docs/CLI.md` |
+| P3 | `BAIDU_APP_ID` / `ENABLE_ALERT` / `ALERT_WEBHOOK_URL` 读取后未使用 | 已在 `.env.example` 标注"预留"，可后续清理或接入 |
+| P3 | `webhooks` 表 CRUD 无路由暴露 | 当前通过 `.env` 配置即可，管理后台按需再做 |
 
-## P2 - 中优先级 ✅ 全部已处理
+## 历史归档（v11.0 及更早）
 
-### 4. 未使用的函数 ✅
-- **处理**: 已删除12个未使用函数（上一轮已完成）
+- 猴补丁 → Mixin 继承：已完成（`database/` 五个 Mixin）
+- `RECORD_COLUMNS` 三处重复 → `database/columns.py` 单一来源：已完成
+- 旧表结构迁移（补 `id` 主键）：已完成（`models.py:_migrate_old_schema`）
 
-### 5. 异步推送死代码 ✅
-- **处理**: 已删除 `async_push_single_webhook` 和 `async_push_to_all_webhooks`（上一轮已完成）
-
-### 6. INVOICE_TEMPLATE 无意义守卫 ✅
-- **处理**: 全部7处替换为 `dict(INVOICE_TEMPLATE)`
-
-### 7. 数据库连接上下文管理器 ✅
-- **处理**: 添加 `_ConnectionContext` 上下文管理器，`queries.py`/`writes.py`/`webhooks.py` 全部改用 `with self.connection() as conn:`
-
-### 8. 裸 except 使用 ✅
-- **处理**: 4处 `except:` 改为 `except Exception:`（上一轮已完成）
-
-## P3 - 低优先级 ✅ 全部已处理
-
-### 9. SQL 拼接模式 ✅
-- **处理**: ORDER BY 已有白名单校验（`safe_order_cols`），`get_distinct_values` 也有白名单（`safe_cols`），LIMIT/OFFSET 使用 `int()` 转换。当前实现已安全。
-
-### 10. OFD 明细行提取 ✅
-- **处理**: 实现 `_extract_details_from_page()`，从页面 TextCode 中提取项目名称、税率、金额、税额
-
-### 11. config.py os.environ 重复调用 ✅
-- **处理**: 顶部添加 `import os`，所有 `__import__('os').environ.get()` 替换为 `os.environ.get()`
-
-## 回归测试结果
-
-- 后端压力测试: **55/55 通过**
-- API 接口测试: **75/75 通过**
-- E2E Web 界面: **正常**（仪表盘、发票台账、搜索功能均正常）
-
----
-
-## 本次清理 (2026-05-07 / /neat)
-
-### 已清理
-1. **重复 claude.md**: 删除根目录小写 `claude.md`（与 `CLAUDE.md` 内容一致）
-2. **config.py 死 import**: 删除 `import sys`（未被引用）
-3. **invoices.py 死 import**: 删除 `verify_invoice_mock` 导入（未被使用）
-4. **database/records.py**: 删除无任何引用的文件（仅重导出 queries/writes）
-5. **VERIFY_STATUS_LABELS 去重**: 删除 `invoices.py` 中的重复定义，改为从 `core/verify.py` 导入
-6. **README 同步**: 功能清单/更新记录/测试命令与代码同步
-
-### 建议重构清单
-| 位置 | 建议 | 优先级 |
-|------|------|--------|
-| `routes/invoices.py:59` | 字段命名不一致：列表API用 `certification_status` 映射DB的 `deduction_status`，详情API直接返回原始字段名 `deduction_status`。前端能兼容但易混淆 | P3 |
-| `routes/invoices.py` 多处 | `deduction_status` 在列表API中被重复使用为"到期状态"(expired/expiring/normal)，同时 DB 同名字段表示"认证状态"(certified/unverified)，语义过载 | P3 |
+> 注：旧版本此文件曾写"全部已处理 ✅ / 154 用例 0 失败"，与实测不符（`api_server.py` 仍有 `sys.path.insert`，
+> 测试脚本会写真实库）。本次已删除该结论，改为按证据记录。

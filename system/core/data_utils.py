@@ -29,25 +29,27 @@ def clean_amount(amount_str):
 
 
 def clean_date(date_str):
+    """把各种日期写法归一化成 YYYY-MM-DD。
+
+    严格校验真实日期（2 月 31 日、4 月 31 日这类会被拒绝），
+    避免脏日期入库后污染统计和抵扣期限计算。
+    """
     if not date_str:
         return ""
-    date_str = date_str.strip()
-    for pattern, fmt in [
-        (r'(\d{8})', None),
-        (r'(\d{4})[\-/年](\d{1,2})[\-/月](\d{1,2})', None),
-        (r'(\d{4})年(\d{1,2})月(\d{1,2})日', None),
-    ]:
+    date_str = str(date_str).strip()
+    for pattern in (r'(\d{8})', r'(\d{4})[\-/年](\d{1,2})[\-/月](\d{1,2})', r'(\d{4})年(\d{1,2})月(\d{1,2})日'):
         m = re.search(pattern, date_str)
-        if m:
-            try:
-                if pattern == r'(\d{8})':
-                    y, mth, d = int(m.group(1)[:4]), int(m.group(1)[4:6]), int(m.group(1)[6:8])
-                else:
-                    y, mth, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
-                if 1 <= mth <= 12 and 1 <= d <= 31:
-                    return f"{y}-{mth:02d}-{d:02d}"
-            except Exception:
-                pass
+        if not m:
+            continue
+        try:
+            if pattern == r'(\d{8})':
+                y, mth, d = int(m.group(1)[:4]), int(m.group(1)[4:6]), int(m.group(1)[6:8])
+            else:
+                y, mth, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            datetime(y, mth, d)  # 让 datetime 校验真实存在（含闰年）
+            return f"{y}-{mth:02d}-{d:02d}"
+        except (ValueError, TypeError):
+            continue
     return ""
 
 

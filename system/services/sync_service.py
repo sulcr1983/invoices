@@ -15,8 +15,9 @@ def push_invoice(record, db_manager):
             logger.info(f"推送完成 [{invoice_num}]: {summary}")
             return ok, results
         else:
-            logger.info(f"无已启用的 Webhook 配置，标记为成功: {invoice_num}")
-            return True, []
+            # 未配置任何推送目标：这是"跳过"，不是"成功"，也不是"失败"
+            logger.info(f"未配置推送目标，已跳过: {invoice_num}")
+            return False, 'skipped'
     except Exception as e:
         logger.error(f"推送异常 [{invoice_num}]: {e}")
         return False, str(e)

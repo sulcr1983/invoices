@@ -1,10 +1,12 @@
+import shutil
+import json
 import sys
 import logging
 import uuid
 from pathlib import Path
 from datetime import datetime
 
-from ..config import INPUT_DIR, FAILED_DIR, DB_PATH, LEDGER_PATH
+from ..config import INPUT_DIR, FAILED_DIR, PROCESSING_DIR, DB_PATH, LEDGER_PATH, RETRY_MAX_ATTEMPTS
 from ..db_manager import DBManager
 from ..services.file_service import ensure_directories
 from ..services import (
@@ -12,7 +14,6 @@ from ..services import (
     get_archive_path, process_invoice_file, push_invoice, compensate_pending
 )
 from ..extractor import calculate_file_md5
-from .verify import verify_invoice_mock
 from .risk_checker import run_risk_check
 
 logger = logging.getLogger(__name__)
@@ -21,23 +22,81 @@ PROCESS_INSTANCE_ID = uuid.uuid4().hex[:8]
 
 
 def generate_batch_id():
+    """生成一次发票处理批次的唯一编号。"""
     return datetime.now().strftime("%Y%m%d%H%M%S%f")
 
 
+def _retry_ledger_path():
+    return Path(FAILED_DIR) / '.retry_count.json'
+
+
+def _load_retry_ledger():
+    p = _retry_ledger_path()
+    try:
+        if p.exists():
+            return json.loads(p.read_text(encoding='utf-8'))
+    except Exception as e:
+        logger.warning(f"读取重试计数失败，按空处理: {e}")
+    return {}
+
+
+def _save_retry_ledger(ledger):
+    try:
+        _retry_ledger_path().write_text(json.dumps(ledger, ensure_ascii=False), encoding='utf-8')
+    except Exception as e:
+        logger.warning(f"写入重试计数失败: {e}")
+
+
+def recover_processing_dir():
+    """把上次中断遗留在 X-处理中临时 的文件放回待识别目录。
+
+    后台线程是 daemon，关窗/断电会直接被杀，文件会卡在处理中目录且
+    下次不会被扫描（只扫待识别目录）——这是静默丢件的根源。
+    """
+    proc_dir = Path(PROCESSING_DIR)
+    if not proc_dir.exists():
+        return 0
+    count = 0
+    for src_path in [f for f in proc_dir.iterdir() if f.is_file()]:
+        dst_path = Path(INPUT_DIR) / src_path.name
+        counter = 1
+        while dst_path.exists():
+            dst_path = Path(INPUT_DIR) / f"{src_path.stem}_r{counter}{src_path.suffix}"
+            counter += 1
+        try:
+            shutil.move(str(src_path), str(dst_path))
+            logger.warning(f"恢复中断文件到待识别目录: {src_path.name}")
+            count += 1
+        except Exception as e:
+            logger.error(f"恢复中断文件失败: {src_path.name}, 错误: {e}")
+    if count:
+        logger.warning(f"本次从上一次中断中恢复了 {count} 个文件")
+    return count
+
+
 def relocate_failed_to_input():
-    import shutil
+    """将失败目录中的文件放回待识别目录，便于重新处理。
+
+    带重试上限：超过 RETRY_MAX_ATTEMPTS 次仍失败的坏文件不再自动回流，
+    避免每次启动都重复消耗 OCR 额度。
+    """
     failed_dir = Path(FAILED_DIR)
     if not failed_dir.exists():
         return 0
 
-    files = [f for f in failed_dir.iterdir() if f.is_file()]
+    files = [f for f in failed_dir.iterdir() if f.is_file() and f.name != '.retry_count.json']
     if not files:
         return 0
 
+    ledger = _load_retry_ledger()
     count = 0
     for src_path in files:
-        dst_path = Path(INPUT_DIR) / src_path.name
+        attempts = int(ledger.get(src_path.name, 0))
+        if attempts >= RETRY_MAX_ATTEMPTS:
+            logger.warning(f"重试已达上限，保留在失败目录: {src_path.name}（{attempts} 次）")
+            continue
 
+        dst_path = Path(INPUT_DIR) / src_path.name
         if dst_path.exists():
             counter = 1
             while dst_path.exists():
@@ -46,17 +105,20 @@ def relocate_failed_to_input():
 
         try:
             shutil.move(str(src_path), str(dst_path))
-            logger.info(f"文件从失败目录移回待识别: {src_path.name}")
+            ledger[src_path.name] = attempts + 1
+            logger.info(f"文件从失败目录移回待识别（第 {attempts + 1} 次）: {src_path.name}")
             count += 1
         except Exception as e:
             logger.warning(f"移动文件失败: {src_path.name}, 错误: {e}")
 
+    _save_retry_ledger(ledger)
     if count > 0:
         logger.info(f"已将 {count} 个文件从失败目录移回待识别目录")
     return count
 
 
 def check_environment():
+    """检查依赖库、数据库和目录是否满足本地处理要求。"""
     logger.info("开始环境自检")
     logger.info(f"Python 路径: {sys.executable}")
     logger.info(f"Python 版本: {sys.version}")
@@ -117,21 +179,25 @@ def check_environment():
 
 
 def run_pipeline():
+    """执行完整发票处理流程：扫描、识别、入库、归档并推送结果。"""
     logger.info("=" * 60)
-    logger.info("天颐 发票处理系统启动")
+    logger.info("SuperSu 发票处理系统启动")
     logger.info("=" * 60)
 
     ensure_directories()
 
+    # 先恢复上次中断遗留在“处理中”目录的文件，再回流失败文件
+    recover_processing_dir()
+
     logger.info("检查失败目录，将文件移回待识别...")
     relocated = relocate_failed_to_input()
     if relocated > 0:
-        print(f"[自动归位] 已将 {relocated} 个文件从失败目录移回待识别目录")
+        logger.info(f"已将 {relocated} 个文件从失败目录移回待识别目录")
 
     if not check_environment():
         logger.warning("环境检查发现问题，但将继续运行...")
     else:
-        print("[环境检查] 一切正常，准备处理发票...")
+        logger.info("环境检查通过，准备处理发票")
 
     db_manager = DBManager(DB_PATH)
 
@@ -159,11 +225,11 @@ def run_pipeline():
         if file_md5:
             existing = db_manager.get_record_by_md5(file_md5)
             if existing:
-                existing_invoice_num = existing[1] if len(existing) > 1 else ''
-                existing_seller = existing[2] if len(existing) > 2 else ''
-                existing_date = existing[4] if len(existing) > 4 else ''
-                existing_amount = existing[11] if len(existing) > 11 else 0
-                existing_code = existing[12] if len(existing) > 12 else ''
+                existing_invoice_num = existing.get('invoice_num', '')
+                existing_seller = existing.get('seller', '')
+                existing_date = existing.get('date', '')
+                existing_amount = existing.get('total_amount', 0)
+                existing_code = existing.get('invoice_code', '')
                 logger.warning(f"文件已在数据库中(MD5重复): {filename} -> {existing_invoice_num}")
                 db_manager.log_duplicate_record(
                     invoice_num=existing_invoice_num,
@@ -219,15 +285,9 @@ def run_pipeline():
             if status == 'success':
                 record = result
 
-                verify_result = verify_invoice_mock(record)
-                record['verify_status'] = verify_result.get('status', 'unverified')
-                if verify_result.get('status') != 'unverified':
-                    from .verify import format_verify_result
-                    db_manager.update_verify_status(
-                        record.get('invoice_num', ''),
-                        verify_result.get('status'),
-                        format_verify_result(verify_result)
-                    )
+                # 说明：批量处理不做自动验真（验真按次计费，且需要人工确认）。
+                # 验真统一走前端「单张/批量验真」入口，此处保持 unverified。
+                record['verify_status'] = 'unverified'
 
                 risk_flags = run_risk_check(record, db_manager)
                 if risk_flags:
@@ -241,6 +301,8 @@ def run_pipeline():
 
                 if push_ok:
                     logger.info(f"推送企微成功: {record.get('invoice_num')}")
+                elif push_error == 'skipped':
+                    logger.info(f"未配置推送目标，已跳过: {record.get('invoice_num')}")
                 else:
                     logger.warning(f"推送企微失败(稍后补偿): {record.get('invoice_num')}, {push_error}")
 
@@ -252,18 +314,28 @@ def run_pipeline():
                     ext,
                     invoice_date=record.get('date', None)
                 )
+                archive_ok = False
                 try:
-                    move_from_processing(processing_path, archive_path)
-                    logger.info(f"归档成功: {archive_path}")
+                    actual_path = move_from_processing(processing_path, archive_path)
+                    # 校验原件确实已离开处理中目录，避免“假归档成功”
+                    if Path(processing_path).exists():
+                        raise RuntimeError('文件仍滞留在处理中目录')
+                    archive_ok = True
+                    logger.info(f"归档成功: {actual_path}")
                 except Exception as e:
                     logger.error(f"归档失败: {processing_path} -> {archive_path}, 错误: {e}")
                     try:
                         from ..services.file_service import move_to_failed
                         move_to_failed(processing_path, filename)
-                    except Exception:
-                        pass
+                    except Exception as move_err:
+                        logger.error(f"归档失败后移入失败目录也失败: {filename}, {move_err}")
                     stats['failed'] += 1
                     stats['failed_files'].append({'filename': filename, 'reason': 'archive_error'})
+
+                if archive_ok:
+                    stats['success'] += 1
+                # 归档失败已在上面计入 failed，这里不再重复计数
+                continue
             elif status == 'duplicate':
                 logger.info(f"文件重复: {filename}")
             else:
@@ -280,19 +352,3 @@ def run_pipeline():
 
     logger.info(f"处理汇总: 成功{stats['success']}, 重复{stats['duplicate']}, 失败{stats['failed']}")
     return stats, batch_id
-
-
-def print_summary_table(stats):
-    total = stats['success'] + stats['duplicate'] + stats['failed']
-
-    print("\n" + "=" * 60)
-    print("                      处理汇总报告")
-    print("=" * 60)
-    print(f"  {'项目':<20} {'数量':<10} {'去向':<25}")
-    print("-" * 60)
-    print(f"  {'本次处理总数':<18} {total:<10} {'-':<25}")
-    print(f"  {'[OK] 成功归档':<18} {stats['success']:<10} {'已归档发票':<25}")
-    print(f"  {'[FAIL] 识别失败':<18} {stats['failed']:<10} {'识别失败待处理':<25}")
-    print(f"  {'[WARN] 重复发票':<18} {stats['duplicate']:<10} {'重复发票记录':<25}")
-    print("=" * 60)
-    print(f"\n[提示] 若企业微信未收到数据，请检查网络后再次运行脚本，系统将自动补发")

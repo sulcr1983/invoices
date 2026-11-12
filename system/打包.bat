@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo   天颐发票处理系统 - 打包脚本
+echo   SuperSu 发票处理系统 - 打包脚本
 echo ========================================
 echo.
 
-set ZIP_NAME=天颐发票处理系统_v1.0.zip
+set ZIP_NAME=SuperSu 发票处理系统_v1.0.zip
 set SOURCE_DIR=%~dp0
 set TEMP_DIR=%TEMP%\invoice_package
 

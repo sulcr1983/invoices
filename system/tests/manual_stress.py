@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
 """
-天颐发票处理系统 · 极端压力测试
-测试范围：空文件/乱码/损坏文件/中文路径/权限异常/重复数据
+SuperSu 发票处理系统 · 极端压力测试（手工脚本，不属于 pytest 用例）
+
+⚠️ 破坏性警告：本脚本会清空/移动 待识别发票、X-处理中临时、识别失败待处理、
+   重复发票记录 等真实业务目录中的文件，并会真实调用 /api/tasks/process。
+
+   因此：
+   1) 文件已从 test_*.py 改名为 manual_stress_test.py，避免被 pytest 自动收集；
+   2) 运行时必须显式加 --force，否则直接退出，防止误触。
 """
 
 import sys
+
+if '--force' not in sys.argv:
+    print("⚠️  本脚本会清空/移动真实发票目录中的文件。")
+    print("   确认在测试环境运行请加 --force：")
+    print("   python system/tests/manual_stress_test.py --force")
+    sys.exit(2)
+
 import shutil
 import tempfile
 import traceback
@@ -97,7 +110,7 @@ def create_test_file(filepath, content=b"", filename=None):
 
 
 print("\n" + "=" * 68)
-print("   天颐发票处理系统 · 极端压力测试")
+print("   SuperSu 发票处理系统 · 极端压力测试")
 print("=" * 68)
 
 setup_module()

@@ -19,7 +19,7 @@ def extract_invoice_data(file_path):
             logger.error(f"无法计算MD5: {file_path}")
             return None, None, "md5_error"
 
-        result = extract_invoice(file_path)
+        result = extract_invoice(file_path, file_md5=file_md5)
         if not result:
             logger.warning(f"发票识别失败: {file_path}")
             return None, None, "extract_error"
@@ -63,6 +63,28 @@ def process_invoice_file(processing_path, db_manager, batch_id=None):
             except Exception as move_err:
                 logger.error(f"移动文件到失败目录失败: {original_filename}, 错误: {move_err}")
             return 'failed', error
+
+        # 二次模糊去重：MD5 不同但内容高度相似（重扫/重拍/换名）也要拦
+        from ..core.dedup import find_near_duplicate
+        near = find_near_duplicate(record, db_manager)
+        if near:
+            db_manager.log_duplicate_record(
+                invoice_num=record.get('invoice_num', ''),
+                seller=record.get('seller', ''),
+                date=record.get('date', ''),
+                total_amount=record.get('total_amount', 0),
+                invoice_code=record.get('invoice_code', ''),
+                file_md5=record.get('file_md5', ''),
+                duplicate_type='duplicate_similar',
+                existing_invoice_num=near.get('invoice_num', ''),
+                filename=original_filename,
+                batch_id=batch_id or ''
+            )
+            try:
+                move_to_duplicate(processing_path, original_filename)
+            except Exception as move_err:
+                logger.error(f"移动疑似重复文件失败: {original_filename}, 错误: {move_err}")
+            return 'duplicate', 'duplicate_similar'
 
         success, reason, record_with_error = db_manager.insert_record_with_transaction(record, batch_id=batch_id)
 

@@ -5,65 +5,75 @@ from .shared import db_manager, api_error
 stats_bp = Blueprint('stats', __name__)
 
 
+def _date_filter():
+    """统一解析日期区间条件，返回 (where 片段, 参数列表)。"""
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    where = ""
+    params = []
+    if date_from:
+        where += " AND date >= ?"
+        params.append(date_from)
+    if date_to:
+        where += " AND date <= ?"
+        params.append(date_to)
+    return where, params
+
+
 @stats_bp.route('/api/stats/summary', methods=['GET'])
 def get_stats_summary():
     try:
-        date_from = request.args.get('date_from')
-        date_to = request.args.get('date_to')
-        conn = db_manager._get_connection()
-        cursor = conn.cursor()
+        where, params = _date_filter()
+        # with 语句保证任何分支/异常都会关闭连接（原实现异常时连接泄漏）
+        with db_manager.connection() as conn:
+            cursor = conn.cursor()
 
-        where = ""
-        params = []
-        if date_from:
-            where += " AND date >= ?"
-            params.append(date_from)
-        if date_to:
-            where += " AND date <= ?"
-            params.append(date_to)
+            cursor.execute(
+                f"SELECT COUNT(*), COALESCE(SUM(total_amount),0), "
+                f"COALESCE(SUM(price_without_tax),0), COALESCE(SUM(tax_amount),0) "
+                f"FROM records WHERE 1=1 {where}", params)
+            row = cursor.fetchone()
+            total_cnt = row[0]
+            total_amt = round(row[1], 2)
+            total_price = round(row[2], 2)
+            total_tax = round(row[3], 2)
 
-        cursor.execute(f"SELECT COUNT(*), COALESCE(SUM(total_amount),0), COALESCE(SUM(price_without_tax),0), COALESCE(SUM(tax_amount),0) FROM records WHERE 1=1 {where}", params)
-        row = cursor.fetchone()
-        total_cnt = row[0]
-        total_amt = round(row[1], 2)
-        total_price = round(row[2], 2)
-        total_tax = round(row[3], 2)
+            cursor.execute(f"SELECT COUNT(DISTINCT seller) FROM records WHERE 1=1 {where}", params)
+            seller_cnt = cursor.fetchone()[0]
 
-        cursor.execute(f"SELECT COUNT(DISTINCT seller) FROM records WHERE 1=1 {where}", params)
-        seller_cnt = cursor.fetchone()[0]
+            cursor.execute(
+                f"SELECT seller, COUNT(*) as cnt, COALESCE(SUM(total_amount),0) as amt "
+                f"FROM records WHERE 1=1 {where} GROUP BY seller ORDER BY amt DESC LIMIT 5", params)
+            seller_cols = [desc[0] for desc in cursor.description]
+            top_sellers = [dict(zip(seller_cols, r)) for r in cursor.fetchall()]
+            for s in top_sellers:
+                s['amt'] = round(s['amt'], 2)
 
-        cursor.execute(f"SELECT seller, COUNT(*) as cnt, COALESCE(SUM(total_amount),0) as amt FROM records WHERE 1=1 {where} GROUP BY seller ORDER BY amt DESC LIMIT 10", params)
-        seller_cols = [desc[0] for desc in cursor.description]
-        top_sellers = [dict(zip(seller_cols, r)) for r in cursor.fetchall()]
-        for s in top_sellers:
-            s['amt'] = round(s['amt'], 2)
+            cursor.execute(f"""
+                SELECT substr(date, 1, 7) as month, COUNT(*) as cnt,
+                       COALESCE(SUM(total_amount),0) as amt,
+                       COALESCE(SUM(price_without_tax),0) as price,
+                       COALESCE(SUM(tax_amount),0) as tax
+                FROM records WHERE date IS NOT NULL AND date != '' AND length(date) >= 7 {where}
+                GROUP BY substr(date, 1, 7) ORDER BY month ASC
+            """, params)
+            month_cols = [desc[0] for desc in cursor.description]
+            monthly_summary = [dict(zip(month_cols, r)) for r in cursor.fetchall()]
+            for m in monthly_summary:
+                m['amt'] = round(m['amt'], 2)
+                m['price'] = round(m['price'], 2)
+                m['tax'] = round(m['tax'], 2)
 
-        cursor.execute(f"""
-            SELECT strftime('%Y-%m', date) as month, COUNT(*) as cnt,
-                   COALESCE(SUM(total_amount),0) as amt,
-                   COALESCE(SUM(price_without_tax),0) as price,
-                   COALESCE(SUM(tax_amount),0) as tax
-            FROM records WHERE date IS NOT NULL AND date != '' {where}
-            GROUP BY strftime('%Y-%m', date) ORDER BY month DESC LIMIT 12
-        """, params)
-        month_cols = [desc[0] for desc in cursor.description]
-        monthly_summary = [dict(zip(month_cols, r)) for r in cursor.fetchall()]
-        for m in monthly_summary:
-            m['amt'] = round(m['amt'], 2)
-            m['price'] = round(m['price'], 2)
-            m['tax'] = round(m['tax'], 2)
-
-        cursor.execute(f"""
-            SELECT COALESCE(NULLIF(invoice_type,''), '未识别') as invoice_type,
-                   COUNT(*) as cnt, COALESCE(SUM(total_amount),0) as amt
-            FROM records WHERE 1=1 {where} GROUP BY invoice_type ORDER BY cnt DESC
-        """, params)
-        type_cols = [desc[0] for desc in cursor.description]
-        type_summary = [dict(zip(type_cols, r)) for r in cursor.fetchall()]
-        for t in type_summary:
-            t['amt'] = round(t['amt'], 2)
-
-        conn.close()
+            cursor.execute(f"""
+                SELECT COALESCE(NULLIF(invoice_type,''), '未识别') as invoice_type,
+                       COUNT(*) as cnt, COALESCE(SUM(total_amount),0) as amt
+                FROM records WHERE 1=1 {where}
+                GROUP BY COALESCE(NULLIF(invoice_type,''), '未识别') ORDER BY cnt DESC
+            """, params)
+            type_cols = [desc[0] for desc in cursor.description]
+            type_summary = [dict(zip(type_cols, r)) for r in cursor.fetchall()]
+            for t in type_summary:
+                t['amt'] = round(t['amt'], 2)
 
         return {
             'status': 'success',
@@ -85,78 +95,60 @@ def get_stats_summary():
 @stats_bp.route('/api/stats/expense-distribution', methods=['GET'])
 def get_expense_distribution():
     try:
-        date_from = request.args.get('date_from')
-        date_to = request.args.get('date_to')
-        conn = db_manager._get_connection()
-        cursor = conn.cursor()
+        where, params = _date_filter()
+        with db_manager.connection() as conn:
+            cursor = conn.cursor()
 
-        where = ""
-        params = []
-        if date_from:
-            where += " AND date >= ?"
-            params.append(date_from)
-        if date_to:
-            where += " AND date <= ?"
-            params.append(date_to)
+            cursor.execute(f"""
+                SELECT COALESCE(NULLIF(department, ''), '未分配') as dept,
+                       COUNT(*) as cnt,
+                       COALESCE(SUM(total_amount), 0) as amt
+                FROM records WHERE 1=1 {where}
+                GROUP BY dept
+                ORDER BY amt DESC
+            """, params)
+            dept_distribution = [
+                {'name': r[0], 'cnt': r[1], 'amt': round(r[2], 2)} for r in cursor.fetchall()
+            ]
 
-        cursor.execute(f"""
-            SELECT COALESCE(NULLIF(department, ''), '未分配') as dept,
-                   COUNT(*) as cnt,
-                   COALESCE(SUM(total_amount), 0) as amt
-            FROM records WHERE 1=1 {where}
-            GROUP BY dept
-            ORDER BY amt DESC
-        """, params)
-        dept_rows = cursor.fetchall()
-        dept_distribution = []
-        for row in dept_rows:
-            dept_distribution.append({
-                'name': row[0], 'cnt': row[1], 'amt': round(row[2], 2)
-            })
+            cursor.execute(f"""
+                SELECT COALESCE(NULLIF(expense_type, ''), '未分类') as exp_type,
+                       COUNT(*) as cnt,
+                       COALESCE(SUM(total_amount), 0) as amt
+                FROM records WHERE 1=1 {where}
+                GROUP BY exp_type
+                ORDER BY amt DESC
+            """, params)
+            expense_distribution = [
+                {'name': r[0], 'cnt': r[1], 'amt': round(r[2], 2)} for r in cursor.fetchall()
+            ]
 
-        cursor.execute(f"""
-            SELECT COALESCE(NULLIF(expense_type, ''), '未分类') as exp_type,
-                   COUNT(*) as cnt,
-                   COALESCE(SUM(total_amount), 0) as amt
-            FROM records WHERE 1=1 {where}
-            GROUP BY exp_type
-            ORDER BY amt DESC
-        """, params)
-        exp_rows = cursor.fetchall()
-        expense_distribution = []
-        for row in exp_rows:
-            expense_distribution.append({
-                'name': row[0], 'cnt': row[1], 'amt': round(row[2], 2)
-            })
+            # 风险数量与风险列表必须使用同一套日期条件，否则两个口径会打架
+            risk_where = where + " AND risk_flags IS NOT NULL AND risk_flags != ''"
+            cursor.execute(f"SELECT COUNT(DISTINCT invoice_num) FROM records WHERE 1=1 {risk_where}", params)
+            risk_count = cursor.fetchone()[0]
 
-        cursor.execute(f"""
-            SELECT COUNT(DISTINCT invoice_num) FROM records WHERE risk_flags IS NOT NULL AND risk_flags != ''{where}
-        """, params if where else [])
-        risk_count = cursor.fetchone()[0]
-
-        cursor.execute(f"""
-            SELECT invoice_num, seller, total_amount, date, risk_flags
-            FROM records WHERE risk_flags IS NOT NULL AND risk_flags != ''
-            ORDER BY process_time DESC LIMIT 20
-        """)
-        risk_rows = cursor.fetchall()
-        risk_invoices = []
-        seen_nums = set()
-        for row in risk_rows:
-            if row[0] in seen_nums:
-                continue
-            seen_nums.add(row[0])
+            cursor.execute(f"""
+                SELECT invoice_num, seller, total_amount, date, risk_flags
+                FROM records WHERE 1=1 {risk_where}
+                ORDER BY process_time DESC LIMIT 20
+            """, params)
+            risk_invoices = []
+            seen_nums = set()
             from ..core.risk_checker import get_risk_flag_labels
-            risk_invoices.append({
-                'invoice_num': row[0],
-                'seller': row[1],
-                'total_amount': row[2],
-                'date': row[3],
-                'risk_flags': row[4],
-                'risk_labels': get_risk_flag_labels(row[4])
-            })
+            for row in cursor.fetchall():
+                if row[0] in seen_nums:
+                    continue
+                seen_nums.add(row[0])
+                risk_invoices.append({
+                    'invoice_num': row[0],
+                    'seller': row[1],
+                    'total_amount': row[2],
+                    'date': row[3],
+                    'risk_flags': row[4],
+                    'risk_labels': get_risk_flag_labels(row[4])
+                })
 
-        conn.close()
         return {
             'status': 'success',
             'data': {

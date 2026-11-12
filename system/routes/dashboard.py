@@ -9,7 +9,6 @@ dashboard_bp = Blueprint('dashboard', __name__)
 def get_dashboard():
     try:
         from ..services import scan_pending_files, ensure_directories
-        from datetime import datetime
 
         stats = db_manager.get_stats()
         recent_records = db_manager.get_recent_records(limit=10)
@@ -27,31 +26,12 @@ def get_dashboard():
         pending_files = scan_pending_files()
         pending_count = len(pending_files)
         failed_count = db_manager.get_failed_count()
-        unsynced_count = db_manager.get_unsynced_count()
         archived_count = stats['total_cnt']
         duplicate_count = db_manager.get_duplicate_stats()['total']
 
-        monthly_trend = []
-        now = datetime.now()
-        for i in range(5, -1, -1):
-            m = now.month - i
-            y = now.year
-            while m <= 0:
-                m += 12
-                y -= 1
-            month_str = f"{y:04d}-{m:02d}"
-            conn = db_manager._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0), COALESCE(SUM(price_without_tax),0), COALESCE(SUM(tax_amount),0) FROM records WHERE strftime('%Y-%m', process_time) = ?", (month_str,))
-            row = cursor.fetchone()
-            conn.close()
-            monthly_trend.append({
-                'month': month_str,
-                'count': row[0],
-                'amount': round(row[1], 2),
-                'price': round(row[2], 2),
-                'tax': round(row[3], 2)
-            })
+        # 一次查询拿全，避免"拉 1000 条在浏览器里数"
+        status_counts = db_manager.get_status_counts()
+        monthly_trend = db_manager.get_monthly_trend(months=6)
 
         return {
             'status': 'success',
@@ -62,6 +42,7 @@ def get_dashboard():
                     'month_cnt': stats['month_cnt'],
                     'month_amt': stats['month_amt']
                 },
+                'status_counts': status_counts,
                 'directory_status': {
                     'pending': pending_count,
                     'archived': archived_count,

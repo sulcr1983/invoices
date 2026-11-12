@@ -1,0 +1,31 @@
+# 版本控制
+.git
+.gitignore
+.claude
+.trae
+.workbuddy
+
+# 环境与密钥（绝不进镜像）
+.env
+*.env
+!.env.example
+
+# 本地数据与产物（运行时由 volume 挂载）
+system/data
+system/logs
+发票台账.csv
+已归档发票
+重复发票记录
+识别失败待处理
+X-处理中临时
+待识别发票
+.backup
+dist
+build
+
+# 缓存与临时
+__pycache__
+*.pyc
+.pytest_cache
+*.tmp
+docs/screenshots

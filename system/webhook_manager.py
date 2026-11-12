@@ -82,9 +82,9 @@ def push_to_all_webhooks(record_dict, db_manager):
     webhooks = db_manager.get_all_webhooks(only_enabled=True)
 
     if not webhooks:
-        logger.debug(f"无 webhook 配置，跳过多路推送: {invoice_num}")
-        db_manager.update_push_success(invoice_num)
-        return True, []
+        logger.info(f"无 webhook 配置，标记推送跳过: {invoice_num}")
+        db_manager.update_push_skipped(invoice_num, '未配置任何推送目标')
+        return False, []
 
     results = []
     for wh in webhooks:
@@ -166,7 +166,7 @@ def test_webhook_connection(platform, url, schema_json=None):
         else:
             payload = builder(record_dict)
     except (json.JSONDecodeError, ValueError) as e:
-        return {"ok": False, "msg": f"Payload构建失败: {e}"}
+            return {"ok": False, "msg": "推送内容生成失败，请检查字段配置"}
 
     try:
         resp = requests.post(url, json=payload, timeout=15)
@@ -184,13 +184,13 @@ def test_webhook_connection(platform, url, schema_json=None):
                 elif errcode == 301005:
                     return {"ok": False, "msg": "表格不存在或已被删除"}
                 elif errcode == 301013:
-                    return {"ok": False, "msg": "字段不匹配：请检查 schema_json 中的字段 ID 是否正确"}
+                    return {"ok": False, "msg": "字段不匹配：请检查表格字段配置是否正确"}
                 else:
-                    return {"ok": False, "msg": f"企微错误: errcode={errcode}, {result.get('errmsg','')}"}
+                    return {"ok": False, "msg": "企微返回失败，请检查表格权限和字段配置"}
             else:
                 if result.get("errcode") == 0 or result.get("code") == 0:
                     return {"ok": True, "msg": "连接成功"}
-                return {"ok": False, "msg": f"未知响应格式: {str(result)[:100]}"}
+                return {"ok": False, "msg": "对方返回内容无法识别，请检查 Webhook 地址是否正确"}
 
         elif resp.status_code == 401:
             return {"ok": False, "msg": "认证失败：Webhook Token 或权限无效"}
@@ -199,11 +199,11 @@ def test_webhook_connection(platform, url, schema_json=None):
         elif resp.status_code == 404:
             return {"ok": False, "msg": "接口不存在：请确认 Webhook 地址是否正确"}
         else:
-            return {"ok": False, "msg": f"HTTP 错误 {resp.status_code}: {resp.text[:100]}"}
+            return {"ok": False, "msg": "对方服务暂时无法处理，请稍后重试"}
 
     except requests.exceptions.Timeout:
         return {"ok": False, "msg": "连接超时：服务器响应时间过长"}
     except requests.exceptions.ConnectionError:
         return {"ok": False, "msg": "连接失败：无法访问目标地址，请检查网络和 URL"}
     except Exception as e:
-        return {"ok": False, "msg": f"连接异常: {str(e)[:80]}"}
+        return {"ok": False, "msg": "连接失败，请检查网络和 Webhook 配置"}
