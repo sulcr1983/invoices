@@ -1,5 +1,5 @@
 """
-天颐发票处理系统 - 绿色便携版打包脚本
+SuperSu 发票处理系统 - 绿色便携版打包脚本
 使用 Python Embeddable Package 制作免安装绿色版
 """
 import os
@@ -222,10 +222,10 @@ app.run(host='127.0.0.1', port=5000, debug=False)
         f.write(launcher_content)
     print(f'  已创建: launcher.py')
 
-    bat_file = os.path.join(PORTABLE_DIR, '天颐发票系统.bat')
+    bat_file = os.path.join(PORTABLE_DIR, 'SuperSu 发票系统.bat')
     bat_content = '''@echo off
 chcp 65001 >nul 2>&1
-title 天颐发票处理系统
+title SuperSu 发票处理系统
 cd /d "%~dp0"
 runtime\\python.exe launcher.py
 if errorlevel 1 (
@@ -236,7 +236,7 @@ if errorlevel 1 (
 '''
     with open(bat_file, 'w', encoding='gbk', errors='replace') as f:
         f.write(bat_content)
-    print(f'  已创建: 天颐发票系统.bat')
+    print(f'  已创建: SuperSu 发票系统.bat')
 
     readme_file = os.path.join(PORTABLE_DIR, '使用说明.txt')
     readme_content = '''SuperSu 发票自动识别验真推送系统 - 绿色便携版
@@ -244,7 +244,7 @@ if errorlevel 1 (
 
 使用方法：
 1. 解压到任意文件夹
-2. 双击"天颐发票系统.bat"启动
+2. 双击"SuperSu 发票系统.bat"启动
 3. 浏览器会自动打开，显示发票管理界面
 4. 关闭命令行窗口即可退出系统
 
@@ -372,5 +372,5 @@ if __name__ == '__main__':
     print('\n' + '='*60)
     print('打包完成！')
     print(f'绿色版目录: {PORTABLE_DIR}')
-    print('双击 天颐发票系统.bat 即可启动')
+    print('双击 SuperSu 发票系统.bat 即可启动')
     print('='*60)
